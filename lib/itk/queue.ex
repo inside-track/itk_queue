@@ -7,7 +7,7 @@ defmodule ITK.Queue do
 
   use GenServer
 
-  alias ITK.Queue.Subscription
+  alias ITK.Queue.{Consumer, Subscription}
 
   @url Application.get_env(:itk_queue, :amqp_url)
   @exchange Application.get_env(:itk_queue, :amqp_exchange)
@@ -25,12 +25,13 @@ defmodule ITK.Queue do
     Logger.info("Subscribing to #{subscription.queue_name} (#{subscription.routing_key})")
     connection = state[:connection] || connect()
     subscriptions = [subscription | Map.get(state, :subscriptions, [])]
+    consumers = [subscribe(connection, subscription) | Map.get(state, :consumers, [])]
     state =
       state
       |> Map.put(:connection, connection)
       |> Map.put(:subscriptions, subscriptions)
+      |> Map.put(:consumers, consumers)
 
-    subscribe(connection, subscription)
     {:noreply, state}
   end
 
@@ -45,17 +46,31 @@ defmodule ITK.Queue do
   end
 
   def handle_info({:DOWN, _, :process, _pid, _reason}, state) do
-    connection = connect()
-    state = state |> Map.put(:connection, connection)
-
     state
-    |> Map.get(:subscriptions, [])
-    |> Enum.each(fn(subscription) -> subscribe(connection, subscription) end)
+    |> Map.get(:consumers, [])
+    |> Enum.each(fn(consumer) -> GenServer.stop(consumer) end)
+
+    connection = connect()
+    consumers =
+      state
+      |> Map.get(:subscriptions, [])
+      |> Enum.map(fn(subscription) -> subscribe(connection, subscription) end)
+
+    state =
+      state
+      |> Map.put(:connection, connection)
+      |> Map.put(:consumers, consumers)
     {:noreply, state}
   end
 
   @doc """
-  Subscribes to a queue. The given process will need to handle casts for `{:message, data}` where data is the parsed message.
+  Subscribes to a queue.
+
+  The handler is expected to be a GenServer that handles calls for `{:message, message}` that replies `:ok`. The `message` is
+  the parsed message.
+
+  If the handler does not return `:ok` or raises an exception the message will not be acknowledged and will be left
+  in the queue for another consumer to handle.
 
   ## Examples
 
@@ -64,12 +79,15 @@ defmodule ITK.Queue do
   """
   def subscribe(queue_name, routing_key, handler) when is_pid(handler) do
     subscribe(queue_name, routing_key, fn(data) ->
-      GenServer.cast(handler, {:message, data})
+      :ok = GenServer.call(handler, {:message, data})
     end)
   end
 
   @doc """
-  Subscribes to a queue. The handler function will be called with the parsed message when received.
+  Subscribes to a queue.
+
+  The handler is expected to be a function that handles the message. If the function raises an exception the message
+  will not be acknowledged and will be left in the queue for another consumer to handle.
 
   ## Examples
 
@@ -99,10 +117,9 @@ defmodule ITK.Queue do
       |> open_channel
       |> bind_channel(queue_name, routing_key)
 
-    {:ok, _} = AMQP.Queue.subscribe(channel, queue_name, fn (data, _) ->
-      parsed_data = Poison.Parser.parse!(data, keys: :atoms)
-      handler.(parsed_data)
-    end)
+    {:ok, consumer} = Consumer.start_link(channel, handler)
+    {:ok, _} = AMQP.Basic.consume(channel, queue_name, consumer)
+    consumer
   end
 
   defp connect do

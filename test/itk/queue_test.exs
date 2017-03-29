@@ -10,16 +10,16 @@ defmodule ITK.QueueTest do
       {:ok, %{}}
     end
 
-    def handle_cast({:message, message}, _state) do
-      {:noreply, message}
+    def handle_call({:message, message}, _from, _state) do
+      {:reply, :ok, message}
     end
 
-    def handle_call({:message}, _from, state) do
+    def handle_call({:get_message}, _from, state) do
       {:reply, state, nil}
     end
 
     def get_message do
-      GenServer.call(:test_subscriber, {:message})
+      GenServer.call(:test_subscriber, {:get_message})
     end
   end
 
