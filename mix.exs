@@ -1,33 +1,46 @@
 defmodule ItkQueue.Mixfile do
   use Mix.Project
 
+  @project_url "https://github.com/inside-track/itk_queue"
+  @version "0.1.0"
+
   def project do
-    [app: :itk_queue,
-     version: "0.1.0",
-     elixir: "~> 1.4",
-     build_embedded: Mix.env == :prod,
-     start_permanent: Mix.env == :prod,
-     deps: deps()]
+    [
+      app: :itk_queue,
+      version: @version,
+      elixir: "~> 1.4",
+      description: "Provides convenience methods for subscribing to queues and publishing messages.",
+      source_url: @project_url,
+      homepage_url: @project_url,
+      build_embedded: Mix.env == :prod,
+      start_permanent: Mix.env == :prod,
+      package: package(),
+      docs: [main: "readme", extras: ["README.md"]],
+      deps: deps()
+    ]
   end
 
-  # Configuration for the OTP application
-  #
-  # Type "mix help compile.app" for more information
   def application do
-    # Specify extra applications you'll use from Erlang/Elixir
-    [extra_applications: [:logger]]
+    [
+      extra_applications: [:logger, :amqp],
+      mod: {ItkQueue, []}
+    ]
   end
 
-  # Dependencies can be Hex packages:
-  #
-  #   {:my_dep, "~> 0.3.0"}
-  #
-  # Or git/path repositories:
-  #
-  #   {:my_dep, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
-  #
-  # Type "mix help deps" for more examples and options
   defp deps do
-    []
+    [
+      {:poison, "~> 3.1"},
+      {:amqp, "~> 0.2"}
+    ]
+  end
+
+  defp package do
+    [
+      maintainers: ["Adam Vaughan"],
+      licenses: ["MIT"],
+      links: %{
+        "GitHub" => @project_url
+      }
+    ]
   end
 end

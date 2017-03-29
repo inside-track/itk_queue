@@ -1,18 +1,7 @@
 defmodule ItkQueue do
-  @moduledoc """
-  Documentation for ItkQueue.
-  """
+  use Application
 
-  @doc """
-  Hello world.
-
-  ## Examples
-
-      iex> ItkQueue.hello
-      :world
-
-  """
-  def hello do
-    :world
+  def start(_type, _args) do
+    ITK.Queue.start_link
   end
 end
