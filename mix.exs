@@ -30,7 +30,8 @@ defmodule ItkQueue.Mixfile do
   defp deps do
     [
       {:poison, "~> 3.1"},
-      {:amqp, "~> 0.2"}
+      {:amqp, "~> 0.2"},
+      {:ex_doc, ">= 0.0.0", only: :dev}
     ]
   end
 
