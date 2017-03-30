@@ -22,6 +22,16 @@ end
 
 After you are done, run `mix deps.get` in your shell to fetch and compile ITK Queue.
 
+## Configuration
+
+The URL and the the exchange that should be used need to be provided as configuration settings
+
+```elixir
+config :itk_queue,
+  amqp_url: "amqp://localhost:5672",
+  amqp_exchange: "development"
+```
+
 ## Publishing Messages
 
 Message publishing is as simple as providing the routing key and the message to be published. The message should be
@@ -35,6 +45,8 @@ ITK.Queue.publish("routing.key", %{my: "message"})
 
 Subscribing to queues requires a queue name, the routing key, and a function that will be called when
 a message is received. The message will be the body of the message parsed as JSON.
+
+If the handler function raises an exception the message will be moved to a temporary queue and retried after a delay.
 
 ```elixir
 ITK.Queue.subscribe("my-queue", "routing.key", fn(message) -> IO.puts inspect message end)
