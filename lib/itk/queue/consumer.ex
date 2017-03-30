@@ -1,29 +1,49 @@
+require Logger
+
 defmodule ITK.Queue.Consumer do
-  @moduledoc false
+  @moduledoc """
+  Monitors a queue for new messages and passes them to the subscribed handler.
+
+  See `ITK.Queue.ConsumerSupervisor.start_consumer/1`.
+  """
 
   use GenServer
 
-  def start_link(channel, handler) do
-    GenServer.start_link(__MODULE__, %{channel: channel, handler: handler}, [])
+  alias ITK.Queue.{Connection, Channel, Subscription}
+
+  @doc false
+  def start_link(subscription = %Subscription{}) do
+    GenServer.start_link(__MODULE__, subscription, [])
   end
 
-  def init(args = %{channel: _channel, handler: _handler}) do
-    {:ok, args}
+  @doc false
+  def init(subscription = %Subscription{queue_name: queue_name, routing_key: routing_key}) do
+    Logger.info("Subscribing to #{queue_name} (#{routing_key})")
+    channel =
+      Connection.connect()
+      |> Channel.open()
+      |> Channel.bind(queue_name, routing_key)
+    {:ok, _} = AMQP.Basic.consume(channel, queue_name, self())
+    {:ok, %{channel: channel, subscription: subscription}}
   end
 
+  @doc false
   def handle_info({:basic_consume_ok, _}, state) do
     {:noreply, state}
   end
 
+  @doc false
   def handle_info({:basic_cancel, _}, state) do
     {:stop, :normal, state}
   end
 
+  @doc false
   def handle_info({:basic_cancel_ok, _}, state) do
     {:noreply, state}
   end
 
-  def handle_info({:basic_deliver, payload, %{delivery_tag: tag}}, state = %{channel: channel, handler: handler}) do
+  @doc false
+  def handle_info({:basic_deliver, payload, %{delivery_tag: tag}}, state = %{channel: channel, subscription: %Subscription{handler: handler}}) do
     spawn fn -> consume(channel, tag, payload, handler) end
     {:noreply, state}
   end
