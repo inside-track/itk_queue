@@ -2,8 +2,8 @@ defmodule ITK.Queue.Subscription do
   @moduledoc false
 
   defmodule DefaultHandler do
-    def handle(_), do: nil
+    def handle(_, _), do: nil
   end
 
-  defstruct queue_name: "", routing_key: "", handler: &DefaultHandler.handle/1
+  defstruct queue_name: "", routing_key: "", handler: &DefaultHandler.handle/2
 end

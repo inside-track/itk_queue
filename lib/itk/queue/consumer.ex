@@ -9,7 +9,7 @@ defmodule ITK.Queue.Consumer do
 
   use GenServer
 
-  alias ITK.Queue.{Connection, Channel, Subscription}
+  alias ITK.Queue.{Connection, Channel, Subscription, Retry}
 
   @doc false
   def start_link(subscription = %Subscription{}) do
@@ -43,14 +43,20 @@ defmodule ITK.Queue.Consumer do
   end
 
   @doc false
-  def handle_info({:basic_deliver, payload, %{delivery_tag: tag}}, state = %{channel: channel, subscription: %Subscription{handler: handler}}) do
-    spawn fn -> consume(channel, tag, payload, handler) end
+  def handle_info({:basic_deliver, payload, meta}, state = %{channel: channel, subscription: subscription}) do
+    spawn fn -> consume(channel, meta, payload, subscription) end
     {:noreply, state}
   end
 
-  defp consume(channel, tag, payload, handler) do
-    parsed_data = Poison.Parser.parse!(payload, keys: :atoms)
-    handler.(parsed_data)
-    AMQP.Basic.ack(channel, tag)
+  defp consume(channel, meta = %{delivery_tag: tag, headers: headers}, payload, subscription = %Subscription{handler: handler}) do
+    try do
+      parsed_data = Poison.Parser.parse!(payload, keys: :atoms)
+      handler.(parsed_data, headers)
+      AMQP.Basic.ack(channel, tag)
+    rescue
+      _ ->
+        Retry.delay(channel, subscription, payload, meta)
+        AMQP.Basic.ack(channel, tag)
+    end
   end
 end

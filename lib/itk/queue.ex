@@ -9,7 +9,7 @@ defmodule ITK.Queue do
   Subscribes to a queue.
 
   The handler is expected to be a function that handles the message. If the function raises an exception the message
-  will not be acknowledged and will be left in the queue for another consumer to handle.
+  will be moved to a temporary queue and retried after a delay.
 
   ## Examples
 
@@ -17,6 +17,10 @@ defmodule ITK.Queue do
 
   """
   def subscribe(queue_name, routing_key, handler) when is_function(handler, 1) do
+    subscribe(queue_name, routing_key, fn(message, _headers) -> handler.(message) end)
+  end
+
+  def subscribe(queue_name, routing_key, handler) when is_function(handler, 2) do
     subscription = %Subscription{queue_name: queue_name, routing_key: routing_key, handler: handler}
     {:ok, _pid} = ConsumerSupervisor.start_consumer(subscription)
   end

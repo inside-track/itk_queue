@@ -16,16 +16,16 @@ defmodule ITK.Queue.Publisher do
     {:ok, %{}}
   end
 
-  def handle_cast({:publish, routing_key, message}, state) do
+  def handle_cast({:publish, routing_key, message, headers}, state) do
     connection = Connection.connect()
     channel = Channel.open(connection)
     {:ok, payload} = Poison.encode(message)
 
-    AMQP.Basic.publish(channel, @exchange, routing_key, payload, persistent: true)
+    AMQP.Basic.publish(channel, @exchange, routing_key, payload, persistent: true, headers: headers)
     {:noreply, state}
   end
 
-  def publish(routing_key, message) do
-    GenServer.cast(@name, {:publish, routing_key, message})
+  def publish(routing_key, message, headers \\ []) do
+    GenServer.cast(@name, {:publish, routing_key, message, headers})
   end
 end
