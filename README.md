@@ -1,11 +1,10 @@
-# ItkQueue
+# ITK Queue
 
-**TODO: Add description**
+Provides convenience functions for subscribing to queues and publishing messages.
 
 ## Installation
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `itk_queue` to your list of dependencies in `mix.exs`:
+The package can be installed by adding `itk_queue` to your list of dependencies in `mix.exs`:
 
 ```elixir
 def deps do
@@ -13,7 +12,42 @@ def deps do
 end
 ```
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at [https://hexdocs.pm/itk_queue](https://hexdocs.pm/itk_queue).
+You should also update your application list to include `:itk_queue`:
 
+```elixir
+def application do
+  [applications: [:itk_queue]]
+end
+```
+
+After you are done, run `mix deps.get` in your shell to fetch and compile ITK Queue.
+
+## Publishing Messages
+
+Message publishing is as simple as providing the routing key and the message to be published. The message should be
+something that can be encoded as JSON.
+
+```elixir
+ITK.Queue.publish("routing.key", %{my: "message"})
+```
+
+## Subscribing
+
+Subscribing to queues requires a queue name, the routing key, and a function that will be called when
+a message is received. The message will be the body of the message parsed as JSON.
+
+```elixir
+ITK.Queue.subscribe("my-queue", "routing.key", fn(message) -> IO.puts inspect message end)
+```
+
+The handler function can take two forms. If you are only interested in the message received use:
+
+```elixir
+fn(message) -> ... end
+```
+
+If you would also like the headers that were included with the message use:
+
+```elixir
+fn(message, headers) -> ... end
+```

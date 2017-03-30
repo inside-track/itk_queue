@@ -1,6 +1,6 @@
 defmodule ITK.Queue do
   @moduledoc """
-  Provides convenience methods for subscribing to queues and publishing messages.
+  Provides convenience functions for subscribing to queues and publishing messages.
   """
 
   alias ITK.Queue.{Publisher, ConsumerSupervisor, Subscription}
