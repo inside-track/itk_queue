@@ -1,8 +1,8 @@
-defmodule ItkQueue.Mixfile do
+defmodule ITKQueue.Mixfile do
   use Mix.Project
 
   @project_url "https://github.com/inside-track/itk_queue"
-  @version "0.1.1"
+  @version "0.2.0"
 
   def project do
     [
@@ -23,7 +23,7 @@ defmodule ItkQueue.Mixfile do
   def application do
     [
       extra_applications: [:logger, :amqp],
-      mod: {ItkQueue, []}
+      mod: {ITKQueue, []}
     ]
   end
 

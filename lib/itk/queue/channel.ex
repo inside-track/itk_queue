@@ -1,4 +1,4 @@
-defmodule ITK.Queue.Channel do
+defmodule ITKQueue.Channel do
   @moduledoc """
   Provides methods for interacting with AMQP channels.
   """

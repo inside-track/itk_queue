@@ -1,7 +1,7 @@
-defmodule ITK.Queue.ConsumerSupervisor do
+defmodule ITKQueue.ConsumerSupervisor do
   use Supervisor
 
-  alias ITK.Queue.{Consumer, Subscription}
+  alias ITKQueue.{Consumer, Subscription}
 
   @name :itk_queue_consumer_supervisor
 

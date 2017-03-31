@@ -1,9 +1,9 @@
-defmodule ITK.Queue.Publisher do
+defmodule ITKQueue.Publisher do
   @moduledoc false
 
   use GenServer
 
-  alias ITK.Queue.{Connection, Channel}
+  alias ITKQueue.{Connection, Channel}
 
   @name :itk_queue_publisher
   @exchange Application.get_env(:itk_queue, :amqp_exchange)

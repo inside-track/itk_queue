@@ -1,4 +1,4 @@
-defmodule ITK.Queue.Connection do
+defmodule ITKQueue.Connection do
   @moduledoc """
   Manages connections to AMQP.
   """

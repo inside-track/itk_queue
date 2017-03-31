@@ -1,15 +1,15 @@
 require Logger
 
-defmodule ITK.Queue.Consumer do
+defmodule ITKQueue.Consumer do
   @moduledoc """
   Monitors a queue for new messages and passes them to the subscribed handler.
 
-  See `ITK.Queue.ConsumerSupervisor.start_consumer/1`.
+  See `ITKQueue.ConsumerSupervisor.start_consumer/1`.
   """
 
   use GenServer
 
-  alias ITK.Queue.{Connection, Channel, Subscription, Retry}
+  alias ITKQueue.{Connection, Channel, Subscription, Retry}
 
   @doc false
   def start_link(subscription = %Subscription{}) do

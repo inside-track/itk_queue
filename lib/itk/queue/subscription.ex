@@ -1,4 +1,4 @@
-defmodule ITK.Queue.Subscription do
+defmodule ITKQueue.Subscription do
   @moduledoc false
 
   defmodule DefaultHandler do

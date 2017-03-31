@@ -8,7 +8,7 @@ The package can be installed by adding `itk_queue` to your list of dependencies 
 
 ```elixir
 def deps do
-  [{:itk_queue, "~> 0.1.0"}]
+  [{:itk_queue, "~> 0.2.0"}]
 end
 ```
 
@@ -38,7 +38,7 @@ Message publishing is as simple as providing the routing key and the message to 
 something that can be encoded as JSON.
 
 ```elixir
-ITK.Queue.publish("routing.key", %{my: "message"})
+ITKQueue.publish("routing.key", %{my: "message"})
 ```
 
 ## Subscribing
@@ -49,7 +49,7 @@ a message is received. The message will be the body of the message parsed as JSO
 If the handler function raises an exception the message will be moved to a temporary queue and retried after a delay.
 
 ```elixir
-ITK.Queue.subscribe("my-queue", "routing.key", fn(message) -> IO.puts inspect message end)
+ITKQueue.subscribe("my-queue", "routing.key", fn(message) -> IO.puts inspect message end)
 ```
 
 The handler function can take two forms. If you are only interested in the message received use:

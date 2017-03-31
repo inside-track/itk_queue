@@ -1,4 +1,4 @@
-defmodule ITK.Queue.Retry do
+defmodule ITKQueue.Retry do
   @moduledoc """
   Handles retrying messages that fail to process.
 
@@ -8,7 +8,7 @@ defmodule ITK.Queue.Retry do
   the original routing key.
   """
 
-  alias ITK.Queue.{Subscription, Publisher}
+  alias ITKQueue.{Subscription, Publisher}
 
   @exchange Application.get_env(:itk_queue, :amqp_exchange)
 

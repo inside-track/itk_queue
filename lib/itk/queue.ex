@@ -1,9 +1,24 @@
-defmodule ITK.Queue do
+defmodule ITKQueue do
   @moduledoc """
   Provides convenience functions for subscribing to queues and publishing messages.
   """
+  use Application
 
-  alias ITK.Queue.{Publisher, ConsumerSupervisor, Subscription}
+  alias ITKQueue.{Publisher, ConsumerSupervisor, Subscription}
+
+  @doc false
+  def start(_type, _args) do
+    import Supervisor.Spec
+
+    children = [
+      worker(ITKQueue.Connection, []),
+      worker(ITKQueue.Publisher, []),
+      supervisor(ITKQueue.ConsumerSupervisor, [])
+    ]
+
+    opts = [strategy: :one_for_one, name: ITKQueue.Supervisor]
+    Supervisor.start_link(children, opts)
+  end
 
   @doc """
   Subscribes to a queue.
@@ -13,7 +28,7 @@ defmodule ITK.Queue do
 
   ## Examples
 
-      iex> ITK.Queue.subscribe("students-data-sync", "data.sync", fn(message) -> IO.puts(inspect(message)) end)
+      iex> ITKQueue.subscribe("students-data-sync", "data.sync", fn(message) -> IO.puts(inspect(message)) end)
 
   """
   def subscribe(queue_name, routing_key, handler) when is_function(handler, 1) do
@@ -30,7 +45,7 @@ defmodule ITK.Queue do
 
   ## Examples
 
-      iex> ITK.Queue.publish("data.sync", %{type: "user", data: %{name: "Test User"}})
+      iex> ITKQueue.publish("data.sync", %{type: "user", data: %{name: "Test User"}})
 
   """
   def publish(routing_key, message) do
