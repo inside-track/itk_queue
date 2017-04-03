@@ -8,7 +8,7 @@ The package can be installed by adding `itk_queue` to your list of dependencies 
 
 ```elixir
 def deps do
-  [{:itk_queue, "~> 0.2.0"}]
+  [{:itk_queue, "~> 0.2.1"}]
 end
 ```
 
@@ -24,12 +24,14 @@ After you are done, run `mix deps.get` in your shell to fetch and compile ITK Qu
 
 ## Configuration
 
-The URL and the the exchange that should be used need to be provided as configuration settings
+The URL and the the exchange that should be used need to be provided as configuration settings. You can also
+indicate whether or not you want the parsed messages to use atom keys or strings. The default is to use atoms.
 
 ```elixir
 config :itk_queue,
   amqp_url: "amqp://localhost:5672",
-  amqp_exchange: "development"
+  amqp_exchange: "development",
+  use_atom_keys: false
 ```
 
 ## Publishing Messages

@@ -11,6 +11,8 @@ defmodule ITKQueue.Consumer do
 
   alias ITKQueue.{Connection, Channel, Subscription, Retry}
 
+  @use_atom_keys Application.get_env(:itk_queue, :use_atom_keys, true)
+
   @doc false
   def start_link(subscription = %Subscription{}) do
     GenServer.start_link(__MODULE__, subscription, [])
@@ -50,7 +52,11 @@ defmodule ITKQueue.Consumer do
 
   defp consume(channel, meta = %{delivery_tag: tag, headers: headers}, payload, subscription = %Subscription{handler: handler}) do
     try do
-      parsed_data = Poison.Parser.parse!(payload, keys: :atoms)
+      parsed_data =
+        case @use_atom_keys do
+          true -> Poison.Parser.parse!(payload, keys: :atoms)
+          _ -> Poison.Parser.parse!(payload)
+        end
       handler.(parsed_data, headers)
       AMQP.Basic.ack(channel, tag)
     rescue
