@@ -19,14 +19,8 @@ defmodule ITKQueue.Consumer do
   end
 
   @doc false
-  def init(subscription = %Subscription{queue_name: queue_name, routing_key: routing_key}) do
-    Logger.info("Subscribing to #{queue_name} (#{routing_key})")
-    channel =
-      Connection.connect()
-      |> Channel.open()
-      |> Channel.bind(queue_name, routing_key)
-    {:ok, _} = AMQP.Basic.consume(channel, queue_name, self())
-    {:ok, %{channel: channel, subscription: subscription}}
+  def init(subscription) do
+    subscribe(subscription)
   end
 
   @doc false
@@ -48,6 +42,24 @@ defmodule ITKQueue.Consumer do
   def handle_info({:basic_deliver, payload, meta}, state = %{channel: channel, subscription: subscription}) do
     spawn fn -> consume(channel, meta, payload, subscription) end
     {:noreply, state}
+  end
+
+  def handle_info({:DOWN, _ref, :process, _pid, :heartbeat_timeout}, %{subscription: subscription}) do
+    # connection died, resubscribe
+    {:ok, state} = subscribe(subscription)
+    {:noreply, state}
+  end
+
+  defp subscribe(subscription = %Subscription{queue_name: queue_name, routing_key: routing_key}) do
+    Logger.info("Subscribing to #{queue_name} (#{routing_key})")
+    connection = Connection.connect()
+    Process.monitor(connection.pid)
+    channel =
+      connection
+      |> Channel.open()
+      |> Channel.bind(queue_name, routing_key)
+    {:ok, _} = AMQP.Basic.consume(channel, queue_name, self())
+    {:ok, %{channel: channel, subscription: subscription}}
   end
 
   defp consume(channel, meta = %{delivery_tag: tag, headers: headers}, payload, subscription = %Subscription{handler: handler}) do
