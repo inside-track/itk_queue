@@ -27,11 +27,25 @@ After you are done, run `mix deps.get` in your shell to fetch and compile ITK Qu
 The URL and the the exchange that should be used need to be provided as configuration settings. You can also
 indicate whether or not you want the parsed messages to use atom keys or strings. The default is to use atoms.
 
+An optional error handler can also be provided. This should be a function that accepts the queue name,
+routing key, payload, and exception.
+
+```elixir
+defmodule MyErrorHandler do
+  def handle(queue_name, routing_key, payload, e) do
+    # do something
+  end
+end
+```
+
+The default error handler logs the error using the default `Logger`.
+
 ```elixir
 config :itk_queue,
   amqp_url: "amqp://localhost:5672",
   amqp_exchange: "development",
-  use_atom_keys: false
+  use_atom_keys: false,
+  error_handler: &MyErrorHandler.handle/4
 ```
 
 ## Publishing Messages

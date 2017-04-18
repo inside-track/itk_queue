@@ -12,6 +12,7 @@ defmodule ITKQueue.Consumer do
   alias ITKQueue.{Connection, Channel, Subscription, Retry}
 
   @use_atom_keys Application.get_env(:itk_queue, :use_atom_keys, true)
+  @error_handler Application.get_env(:itk_queue, :error_handler, &ITKQueue.DefaultErrorHandler.handle/4)
 
   @doc false
   def start_link(subscription = %Subscription{}) do
@@ -62,7 +63,7 @@ defmodule ITKQueue.Consumer do
     {:ok, %{channel: channel, subscription: subscription}}
   end
 
-  defp consume(channel, meta = %{delivery_tag: tag, headers: headers}, payload, subscription = %Subscription{handler: handler}) do
+  defp consume(channel, meta = %{delivery_tag: tag, headers: headers}, payload, subscription = %Subscription{queue_name: queue_name, routing_key: routing_key, handler: handler}) do
     try do
       parsed_data =
         case @use_atom_keys do
@@ -72,7 +73,8 @@ defmodule ITKQueue.Consumer do
       handler.(parsed_data, headers)
       AMQP.Basic.ack(channel, tag)
     rescue
-      _ ->
+      e ->
+        @error_handler.(queue_name, routing_key, payload, e)
         Retry.delay(channel, subscription, payload, meta)
         AMQP.Basic.ack(channel, tag)
     end
