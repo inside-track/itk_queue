@@ -22,6 +22,7 @@ defmodule ITKQueue.Publisher do
     {:ok, payload} = Poison.encode(message)
 
     AMQP.Basic.publish(channel, @exchange, routing_key, payload, persistent: true, headers: headers)
+    Channel.close(channel)
     {:noreply, state}
   end
 

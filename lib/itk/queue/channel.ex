@@ -17,6 +17,13 @@ defmodule ITKQueue.Channel do
   end
 
   @doc """
+  Closes a channel.
+  """
+  def close(channel) do
+    AMQP.Channel.close(channel)
+  end
+
+  @doc """
   Declares a queue and binds the routing key to it on the given channel. This sets
   up a queue so that messages sent with the routing key get directed to the queue.
 
