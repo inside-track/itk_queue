@@ -37,7 +37,7 @@ defmodule ITKQueue.Mixfile do
 
   defp package do
     [
-      maintainers: ["Adam Vaughan"],
+      maintainers: ["Adam Vaughan", "Grant Austin"],
       licenses: ["MIT"],
       links: %{
         "GitHub" => @project_url
