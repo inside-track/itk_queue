@@ -3,7 +3,7 @@ defmodule ITKQueue.Publisher do
 
   use GenServer
 
-  alias ITKQueue.{Connection, Channel}
+  alias ITKQueue.{Connection, Channel, Fallback}
 
   @name :itk_queue_publisher
   @exchange Application.get_env(:itk_queue, :amqp_exchange)
@@ -21,7 +21,11 @@ defmodule ITKQueue.Publisher do
     channel = Channel.open(connection)
     {:ok, payload} = Poison.encode(message)
 
-    AMQP.Basic.publish(channel, @exchange, routing_key, payload, persistent: true, headers: headers)
+    case AMQP.Basic.publish(channel, @exchange, routing_key, payload, persistent: true, headers: headers) do
+      :ok -> nil
+      _ -> Fallback.publish(routing_key, message)
+    end
+
     Channel.close(channel)
     {:noreply, state}
   end

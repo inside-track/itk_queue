@@ -45,8 +45,13 @@ config :itk_queue,
   amqp_url: "amqp://localhost:5672",
   amqp_exchange: "development",
   use_atom_keys: false,
-  error_handler: &MyErrorHandler.handle/4
+  error_handler: &MyErrorHandler.handle/4,
+  fallback_endpoint: false
 ```
+
+### Fallback Configuration
+
+If publishing a message fails the routing key and data can be published to an optional fallback endpoint. This can configured by setting `fallback_endpoint` to the URL the data should be sent to. If the endpoint is set to `false` then it will not be used. If the endpoint requires basic authentication the `fallback_username` and `fallback_password` options can be set. The data will be sent as form-encoded data in the keys `routing_key` and `content`.
 
 ## Publishing Messages
 
