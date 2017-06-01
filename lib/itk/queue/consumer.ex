@@ -41,7 +41,7 @@ defmodule ITKQueue.Consumer do
 
   @doc false
   def handle_info({:basic_deliver, payload, meta}, state = %{channel: channel, subscription: subscription}) do
-    spawn fn -> consume(channel, meta, payload, subscription) end
+    Task.start(fn -> consume(channel, meta, payload, subscription) end)
     {:noreply, state}
   end
 
