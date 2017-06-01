@@ -5,6 +5,7 @@ defmodule ITKQueue.Fallback do
   @username Application.get_env(:itk_queue, :fallback_username)
   @password Application.get_env(:itk_queue, :fallback_password)
 
+  @spec publish(routing_key :: String.t, message :: Map.t) :: no_return
   def publish(routing_key, message) do
     do_publish(@endpoint, routing_key, message)
   end

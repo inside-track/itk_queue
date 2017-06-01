@@ -8,6 +8,7 @@ defmodule ITKQueueTest do
         |> ITKQueue.Channel.open()
       AMQP.Queue.delete(channel, "my-test-queue-1")
       AMQP.Queue.delete(channel, "my-test-queue-2")
+      ITKQueue.Channel.close(channel)
     end
   end
 

@@ -34,10 +34,12 @@ defmodule ITKQueue.Connection do
 
   Returns an `AMQP.Connection`.
   """
+  @spec connect() :: AMQP.Connection.t
   def connect do
     GenServer.call(@name, :connection)
   end
 
+  @spec do_connect() :: AMQP.Connection.t
   defp do_connect do
     case AMQP.Connection.open(@url) do
       {:ok, connection} ->

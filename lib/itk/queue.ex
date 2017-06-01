@@ -48,12 +48,12 @@ defmodule ITKQueue do
       iex> ITKQueue.subscribe("students-data-sync", "data.sync", fn(message) -> IO.puts(inspect(message)) end)
 
   """
-  @spec subscribe(String.t, String.t, fun) :: {:ok, PID.t}
+  @spec subscribe(queue_name :: String.t, routing_key :: String.t, handler :: fun) :: {:ok, pid}
   def subscribe(queue_name, routing_key, handler) when is_function(handler, 1) do
     subscribe(queue_name, routing_key, fn(message, _headers) -> handler.(message) end)
   end
 
-  @spec subscribe(String.t, String.t, fun) :: {:ok, PID.t}
+  @spec subscribe(queue_name :: String.t, routing_key :: String.t, handler :: fun) :: {:ok, pid}
   def subscribe(queue_name, routing_key, handler) when is_function(handler, 2) do
     if Mix.env == :test && !@running_library_tests do
       {:ok, :ok}
@@ -71,7 +71,7 @@ defmodule ITKQueue do
       iex> ITKQueue.publish("data.sync", %{type: "user", data: %{name: "Test User"}})
 
   """
-  @spec publish(String.t, Map.t | List.t) :: :ok
+  @spec publish(routing_key :: String.t, message :: Map.t) :: :ok
   def publish(routing_key, message) do
     if Mix.env == :test && !@running_library_tests do
       send self(), [:publish, routing_key, message]

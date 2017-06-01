@@ -45,6 +45,7 @@ defmodule ITKQueue.Consumer do
     {:noreply, state}
   end
 
+  @doc false
   def handle_info({:DOWN, _ref, :process, _pid, _error}, %{subscription: subscription}) do
     # connection died, resubscribe
     {:ok, state} = subscribe(subscription)

@@ -2,6 +2,7 @@ defmodule ITKQueue.Subscription do
   @moduledoc false
 
   defmodule DefaultHandler do
+    @moduledoc false
     def handle(_, _), do: nil
   end
 

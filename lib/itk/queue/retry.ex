@@ -18,6 +18,7 @@ defmodule ITKQueue.Retry do
   The message will go into a temporary "retry" queue and, after a delay, will be republished with the
   original routing key.
   """
+  @spec delay(channel :: AMQP.Channel.t, subscription :: Subscription.t, payload :: String.t, meta :: Map.t) :: no_return
   def delay(channel, %Subscription{routing_key: routing_key}, payload, %{delivery_tag: tag, headers: headers}) do
     headers = headers_to_map(headers)
     retry_count = (headers["retry_count"] || 0) + 1

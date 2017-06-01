@@ -30,6 +30,10 @@ defmodule ITKQueue.Publisher do
     {:noreply, state}
   end
 
+  @doc """
+  Publishes a message to the given routing key.
+  """
+  @spec publish(routing_key :: String.t, message :: Map.t, headers :: Keyword.t) :: no_return
   def publish(routing_key, message, headers \\ []) do
     GenServer.cast(@name, {:publish, routing_key, message, headers})
   end
