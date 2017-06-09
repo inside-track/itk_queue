@@ -65,6 +65,15 @@ defmodule ITKQueue.Consumer do
   end
 
   defp consume(channel, meta = %{delivery_tag: tag, headers: headers}, payload, subscription = %Subscription{queue_name: queue_name, routing_key: routing_key, handler: handler}) do
+    message_uuid = UUID.uuid4()
+    retry_count = ITKQueue.Headers.get(headers, "retry_count")
+
+    if retry_count do
+      Logger.info("#{message_uuid}: Starting retry ##{retry_count} on #{payload}")
+    else
+      Logger.info("#{message_uuid}: Starting on #{payload}")
+    end
+
     try do
       parsed_data =
         case @use_atom_keys do
@@ -73,8 +82,10 @@ defmodule ITKQueue.Consumer do
         end
       handler.(parsed_data, headers)
       AMQP.Basic.ack(channel, tag)
+      Logger.info("#{message_uuid}: Completed")
     rescue
       e ->
+        Logger.error("#{message_uuid}: Queue error #{Exception.format(:error, e, System.stacktrace)}")
         @error_handler.(queue_name, routing_key, payload, e)
         Retry.delay(channel, subscription, payload, meta)
         AMQP.Basic.ack(channel, tag)

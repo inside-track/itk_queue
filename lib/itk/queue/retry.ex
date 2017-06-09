@@ -20,8 +20,7 @@ defmodule ITKQueue.Retry do
   """
   @spec delay(channel :: AMQP.Channel.t, subscription :: Subscription.t, payload :: String.t, meta :: Map.t) :: no_return
   def delay(channel, %Subscription{routing_key: routing_key}, payload, %{delivery_tag: tag, headers: headers}) do
-    headers = headers_to_map(headers)
-    retry_count = (headers["retry_count"] || 0) + 1
+    retry_count = ITKQueue.Headers.get(headers, "retry_count", 0) + 1
     headers = [{"retry_count", :long, retry_count}]
     queue_name = "retry.queue.#{tag}"
 
@@ -35,10 +34,4 @@ defmodule ITKQueue.Retry do
     AMQP.Queue.bind(channel, queue_name, @exchange, routing_key: queue_name)
     Publisher.publish(queue_name, Poison.Parser.parse!(payload), headers)
   end
-
-  defp headers_to_map(headers) when is_list(headers) do
-    Enum.reduce(headers, %{}, fn({name, _type, value}, acc) -> Map.put(acc, name, value) end)
-  end
-
-  defp headers_to_map(_), do: %{}
 end
