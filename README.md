@@ -67,7 +67,7 @@ ITKQueue.publish("routing.key", %{my: "message"})
 Subscribing to queues requires a queue name, the routing key, and a function that will be called when
 a message is received. The message will be the body of the message parsed as JSON.
 
-If the handler function raises an exception the message will be moved to a temporary queue and retried after a delay.
+If the handler function raises an exception or returns `{:retry, some_message}`, the message will be moved to a temporary queue and retried after a delay.
 
 ```elixir
 ITKQueue.subscribe("my-queue", "routing.key", fn(message) -> IO.puts inspect message end)
