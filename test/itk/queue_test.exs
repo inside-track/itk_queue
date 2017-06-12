@@ -33,4 +33,19 @@ defmodule ITKQueueTest do
     ITKQueue.publish("test.queue2", %{test: "me"})
     assert_receive :ok, 5_000
   end
+
+  test "retrying failed messages without an exception" do
+    pid = self()
+    ITKQueue.subscribe("my-test-queue-2", "test.queue2", fn(_message, headers) ->
+      {_, _, retry_count} = Enum.find(headers, {nil, nil, 0}, fn({name, _type, _value}) -> name == "retry_count" end)
+
+      if retry_count > 0 do
+        send pid, :ok
+      else
+        {:retry, "try again"}
+      end
+    end)
+    ITKQueue.publish("test.queue2", %{test: "me"})
+    assert_receive :ok, 5_000
+  end
 end

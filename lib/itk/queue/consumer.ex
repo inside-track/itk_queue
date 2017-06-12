@@ -80,9 +80,16 @@ defmodule ITKQueue.Consumer do
           true -> Poison.Parser.parse!(payload, keys: :atoms)
           _ -> Poison.Parser.parse!(payload)
         end
-      handler.(parsed_data, headers)
+      res = handler.(parsed_data, headers)
       AMQP.Basic.ack(channel, tag)
-      Logger.info("#{message_uuid}: Completed")
+
+      case res do
+        {:retry, reason} ->
+          Logger.info "#{message_uuid}: Retrying - #{reason}"
+          Retry.delay(channel, subscription, payload, meta)
+        _ ->
+          Logger.info("#{message_uuid}: Completed")
+      end
     rescue
       e ->
         Logger.error("#{message_uuid}: Queue error #{Exception.format(:error, e, System.stacktrace)}")
