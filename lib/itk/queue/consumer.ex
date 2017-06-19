@@ -69,9 +69,9 @@ defmodule ITKQueue.Consumer do
     retry_count = ITKQueue.Headers.get(headers, "retry_count")
 
     if retry_count do
-      Logger.info("#{message_uuid}: Starting retry ##{retry_count} on #{payload}")
+      Logger.info("#{message_uuid}: (#{queue_name} - #{routing_key}) Starting retry ##{retry_count} on #{payload}")
     else
-      Logger.info("#{message_uuid}: Starting on #{payload}")
+      Logger.info("#{message_uuid}: (#{queue_name} - #{routing_key}) Starting on #{payload}")
     end
 
     try do
@@ -85,14 +85,14 @@ defmodule ITKQueue.Consumer do
 
       case res do
         {:retry, reason} ->
-          Logger.info "#{message_uuid}: Retrying - #{reason}"
+          Logger.info "#{message_uuid}: (#{queue_name} - #{routing_key}) Retrying - #{reason}"
           Retry.delay(channel, subscription, payload, meta)
         _ ->
-          Logger.info("#{message_uuid}: Completed")
+          Logger.info("#{message_uuid}: (#{queue_name} - #{routing_key}) Completed")
       end
     rescue
       e ->
-        Logger.error("#{message_uuid}: Queue error #{Exception.format(:error, e, System.stacktrace)}")
+        Logger.error("#{message_uuid}: (#{queue_name} - #{routing_key}) Queue error #{Exception.format(:error, e, System.stacktrace)}")
         @error_handler.(queue_name, routing_key, payload, e)
         Retry.delay(channel, subscription, payload, meta)
         AMQP.Basic.ack(channel, tag)
