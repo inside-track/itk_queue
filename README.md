@@ -84,3 +84,19 @@ If you would also like the headers that were included with the message use:
 ```elixir
 fn(message, headers) -> ... end
 ```
+
+## Automatic Worker Registration
+
+In order to have your queue workers automatically started for you you should `use ITKQueue.Worker` and call the `subscribe/3` macro it provides.
+
+```elixir
+defmodule MyWorker do
+  use ITKQueue.Worker
+
+  subscribe("my.queue.name", "my.routing.key", &process/1)
+
+  def process(message) do
+    # do something with the message
+  end
+end
+```
