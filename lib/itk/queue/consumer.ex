@@ -1,5 +1,3 @@
-require Logger
-
 defmodule ITKQueue.Consumer do
   @moduledoc """
   Monitors a queue for new messages and passes them to the subscribed handler.
@@ -9,7 +7,7 @@ defmodule ITKQueue.Consumer do
 
   use GenServer
 
-  alias ITKQueue.{Connection, Channel, Subscription, Retry}
+  alias ITKQueue.{Connection, Channel, Subscription, Retry, SyslogLogger}
 
   @use_atom_keys Application.get_env(:itk_queue, :use_atom_keys, true)
   @error_handler Application.get_env(:itk_queue, :error_handler, &ITKQueue.DefaultErrorHandler.handle/4)
@@ -53,7 +51,7 @@ defmodule ITKQueue.Consumer do
   end
 
   defp subscribe(subscription = %Subscription{queue_name: queue_name, routing_key: routing_key}) do
-    Logger.info("Subscribing to #{queue_name} (#{routing_key})")
+    SyslogLogger.info(queue_name, routing_key, "Subscribing to #{queue_name} (#{routing_key})")
     connection = Connection.connect()
     Process.monitor(connection.pid)
     channel =
@@ -69,9 +67,9 @@ defmodule ITKQueue.Consumer do
     retry_count = ITKQueue.Headers.get(headers, "retry_count")
 
     if retry_count do
-      Logger.info("#{message_uuid}: (#{queue_name} - #{routing_key}) Starting retry ##{retry_count} on #{payload}")
+      SyslogLogger.info(queue_name, routing_key, "#{message_uuid}: Starting retry ##{retry_count} on #{payload}")
     else
-      Logger.info("#{message_uuid}: (#{queue_name} - #{routing_key}) Starting on #{payload}")
+      SyslogLogger.info(queue_name, routing_key, "#{message_uuid}: Starting on #{payload}")
     end
 
     try do
@@ -85,14 +83,14 @@ defmodule ITKQueue.Consumer do
 
       case res do
         {:retry, reason} ->
-          Logger.info "#{message_uuid}: (#{queue_name} - #{routing_key}) Retrying - #{reason}"
+          SyslogLogger.info(queue_name, routing_key, "#{message_uuid}: Retrying - #{reason}")
           Retry.delay(channel, subscription, payload, meta)
         _ ->
-          Logger.info("#{message_uuid}: (#{queue_name} - #{routing_key}) Completed")
+          SyslogLogger.info(queue_name, routing_key, "#{message_uuid}: Completed")
       end
     rescue
       e ->
-        Logger.error("#{message_uuid}: (#{queue_name} - #{routing_key}) Queue error #{Exception.format(:error, e, System.stacktrace)}")
+        SyslogLogger.error(queue_name, routing_key, "#{message_uuid}: Queue error #{Exception.format(:error, e, System.stacktrace)}")
         @error_handler.(queue_name, routing_key, payload, e)
         Retry.delay(channel, subscription, payload, meta)
         AMQP.Basic.ack(channel, tag)
