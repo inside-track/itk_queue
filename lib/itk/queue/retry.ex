@@ -19,10 +19,11 @@ defmodule ITKQueue.Retry do
   original routing key.
   """
   @spec delay(channel :: AMQP.Channel.t, subscription :: Subscription.t, payload :: String.t, meta :: Map.t) :: no_return
-  def delay(channel, %Subscription{routing_key: routing_key}, payload, %{delivery_tag: tag, headers: headers}) do
+  def delay(channel, %Subscription{routing_key: routing_key}, payload, %{headers: headers}) do
     retry_count = ITKQueue.Headers.get(headers, "retry_count", 0) + 1
     headers = [{"retry_count", :long, retry_count}]
-    queue_name = "retry.queue.#{tag}"
+    identifier = DateTime.utc_now |> DateTime.to_unix(:nanoseconds)
+    queue_name = "retry.queue.#{routing_key}.#{identifier}"
 
     expiration =
       cond do
