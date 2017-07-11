@@ -4,6 +4,7 @@ defmodule ITKQueue.Channel do
   """
 
   @exchange Application.get_env(:itk_queue, :amqp_exchange)
+  @consumer_count Application.get_env(:itk_queue, :consumer_count, 10)
 
   @doc """
   Opens a topic channel on the given connection.
@@ -33,7 +34,7 @@ defmodule ITKQueue.Channel do
   """
   @spec bind(channel :: AMQP.Channel.t, queue_name :: String.t, routing_key :: String.t) :: AMQP.Channel.t
   def bind(channel, queue_name, routing_key) do
-    AMQP.Basic.qos(channel, prefetch_count: 10)
+    AMQP.Basic.qos(channel, prefetch_count: @consumer_count)
     AMQP.Queue.declare(channel, queue_name, durable: true, auto_delete: false)
     AMQP.Queue.bind(channel, queue_name, @exchange, routing_key: routing_key)
     channel
