@@ -46,7 +46,8 @@ config :itk_queue,
   amqp_exchange: "development",
   use_atom_keys: false,
   error_handler: &MyErrorHandler.handle/4,
-  fallback_endpoint: false
+  fallback_endpoint: false,
+  dead_letter_queue: "graveyard"
 ```
 
 ### Fallback Configuration

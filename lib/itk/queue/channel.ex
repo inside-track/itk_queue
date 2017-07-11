@@ -4,6 +4,7 @@ defmodule ITKQueue.Channel do
   """
 
   @exchange Application.get_env(:itk_queue, :amqp_exchange)
+  @dead_letter_queue Application.get_env(:itk_queue, :dead_letter_queue)
   @consumer_count Application.get_env(:itk_queue, :consumer_count, 10)
 
   @doc """
@@ -35,8 +36,18 @@ defmodule ITKQueue.Channel do
   @spec bind(channel :: AMQP.Channel.t, queue_name :: String.t, routing_key :: String.t) :: AMQP.Channel.t
   def bind(channel, queue_name, routing_key) do
     AMQP.Basic.qos(channel, prefetch_count: @consumer_count)
-    AMQP.Queue.declare(channel, queue_name, durable: true, auto_delete: false)
+    AMQP.Queue.declare(channel, queue_name, durable: true, auto_delete: false, arguments: bind_arguments())
     AMQP.Queue.bind(channel, queue_name, @exchange, routing_key: routing_key)
     channel
+  end
+
+  defp bind_arguments do
+    case @dead_letter_queue do
+      nil -> []
+      _ -> [
+        {"x-dead-letter-exchange", :longstr, @exchange},
+        {"x-dead-letter-routing-key", :longstr, @dead_letter_queue}
+      ]
+    end
   end
 end
