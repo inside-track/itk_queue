@@ -4,7 +4,7 @@ defmodule ITKQueue.Channel do
   """
 
   @exchange Application.get_env(:itk_queue, :amqp_exchange)
-  @dead_letter_queue Application.get_env(:itk_queue, :dead_letter_queue)
+  @dead_letter_routing_key Application.get_env(:itk_queue, :dead_letter_routing_key)
   @consumer_count Application.get_env(:itk_queue, :consumer_count, 10)
 
   @doc """
@@ -42,11 +42,11 @@ defmodule ITKQueue.Channel do
   end
 
   defp bind_arguments do
-    case @dead_letter_queue do
+    case @dead_letter_routing_key do
       nil -> []
       _ -> [
         {"x-dead-letter-exchange", :longstr, @exchange},
-        {"x-dead-letter-routing-key", :longstr, @dead_letter_queue}
+        {"x-dead-letter-routing-key", :longstr, @dead_letter_routing_key}
       ]
     end
   end
