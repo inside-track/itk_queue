@@ -15,6 +15,10 @@ defmodule ITKQueue.SyslogLogger do
     log(logger, "36", message)
   end
 
+  def info(routing_key, message) do
+    info("", routing_key, message)
+  end
+
   def info(queue_name, routing_key, message) do
     info(%SyslogLogger{queue_name: queue_name, routing_key: routing_key}, message)
   end
