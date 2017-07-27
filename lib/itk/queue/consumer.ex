@@ -63,37 +63,66 @@ defmodule ITKQueue.Consumer do
   end
 
   defp consume(channel, meta = %{delivery_tag: tag, headers: headers}, payload, subscription = %Subscription{queue_name: queue_name, routing_key: routing_key, handler: handler}) do
-    message_uuid = UUID.uuid4()
+    message = payload |> parse_payload |> set_message_uuid
     retry_count = ITKQueue.Headers.get(headers, "retry_count")
 
     if retry_count do
-      SyslogLogger.info(queue_name, routing_key, "#{message_uuid}: Starting retry ##{retry_count} on #{payload}")
+      SyslogLogger.info(queue_name, routing_key, "#{message_uuid(message)}: Starting retry ##{retry_count} on #{payload}")
     else
-      SyslogLogger.info(queue_name, routing_key, "#{message_uuid}: Starting on #{payload}")
+      SyslogLogger.info(queue_name, routing_key, "#{message_uuid(message)}: Starting on #{payload}")
     end
 
     try do
-      parsed_data =
-        case @use_atom_keys do
-          true -> Poison.Parser.parse!(payload, keys: :atoms)
-          _ -> Poison.Parser.parse!(payload)
-        end
-      res = handler.(parsed_data, headers)
-      AMQP.Basic.ack(channel, tag)
-
-      case res do
-        {:retry, reason} ->
-          SyslogLogger.info(queue_name, routing_key, "#{message_uuid}: Retrying - #{reason}")
-          Retry.delay(channel, subscription, payload, meta)
-        _ ->
-          SyslogLogger.info(queue_name, routing_key, "#{message_uuid}: Completed")
-      end
+      consume_message(message, channel, meta, subscription)
     rescue
       e ->
-        SyslogLogger.error(queue_name, routing_key, "#{message_uuid}: Queue error #{Exception.format(:error, e, System.stacktrace)}")
+        SyslogLogger.error(queue_name, routing_key, "#{message_uuid(message)}: Queue error #{Exception.format(:error, e, System.stacktrace)}")
         @error_handler.(queue_name, routing_key, payload, e)
-        Retry.delay(channel, subscription, payload, meta)
+        Retry.delay(channel, subscription, message, meta)
         AMQP.Basic.ack(channel, tag)
+    end
+  end
+
+  defp parse_payload(payload) do
+    case @use_atom_keys do
+      true -> Poison.Parser.parse!(payload, keys: :atoms)
+      _ -> Poison.Parser.parse!(payload)
+    end
+  end
+
+  defp set_message_uuid(message = %{metadata: %{uuid: _}}), do: message
+
+  defp set_message_uuid(message = %{"metadata" => %{"uuid" => _}}), do: message
+
+  defp set_message_uuid(message = %{"metadata" => metadata}) do
+    metadata = Map.put(metadata, "uuid", UUID.uuid4())
+    Map.put(message, "metadata", metadata)
+  end
+
+  defp set_message_uuid(message) do
+    metadata =
+      message
+      |> Map.get(:metadata, %{})
+      |> Map.put(:uuid, UUID.uuid4())
+    Map.put(message, :metadata, metadata)
+  end
+
+  defp message_uuid(%{metadata: %{uuid: uuid}}), do: uuid
+
+  defp message_uuid(%{"metadata" => %{"uuid" => uuid}}), do: uuid
+
+  defp message_uuid(_), do: nil
+
+  defp consume_message(message, channel, meta = %{delivery_tag: tag, headers: headers}, subscription = %Subscription{queue_name: queue_name, routing_key: routing_key, handler: handler}) do
+    res = handler.(message, headers)
+    AMQP.Basic.ack(channel, tag)
+
+    case res do
+      {:retry, reason} ->
+        SyslogLogger.info(queue_name, routing_key, "#{message_uuid(message)}: Retrying - #{reason}")
+        Retry.delay(channel, subscription, message, meta)
+      _ ->
+        SyslogLogger.info(queue_name, routing_key, "#{message_uuid(message)}: Completed")
     end
   end
 end

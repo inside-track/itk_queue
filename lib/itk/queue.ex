@@ -78,7 +78,8 @@ defmodule ITKQueue do
       send self(), [:publish, routing_key, message]
       :ok
     else
-      Publisher.publish(routing_key ,message)
+      stacktrace = Process.info(self(), :current_stacktrace)
+      Publisher.publish(routing_key, message, [], elem(stacktrace, 1))
     end
   end
 end
