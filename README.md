@@ -47,12 +47,17 @@ config :itk_queue,
   use_atom_keys: false,
   error_handler: &MyErrorHandler.handle/4,
   fallback_endpoint: false,
-  dead_letter_queue: "graveyard"
+  dead_letter_routing_key: "graveyard",
+  max_retries: 10
 ```
 
 ### Fallback Configuration
 
 If publishing a message fails the routing key and data can be published to an optional fallback endpoint. This can configured by setting `fallback_endpoint` to the URL the data should be sent to. If the endpoint is set to `false` then it will not be used. If the endpoint requires basic authentication the `fallback_username` and `fallback_password` options can be set. The data will be sent as form-encoded data in the keys `routing_key` and `content`.
+
+### Dead Letter Configuration
+
+If a dead letter routing key is provided, queues will be configured to use it. After the maximum number of retries has been exceeded for a message it will be rejected, causing it to be routed to the dead letter routing key. To retry indefinitely either leave out the `max_retries` configuration or set it to `-1`.
 
 ## Publishing Messages
 

@@ -11,6 +11,7 @@ defmodule ITKQueue.Consumer do
 
   @use_atom_keys Application.get_env(:itk_queue, :use_atom_keys, true)
   @error_handler Application.get_env(:itk_queue, :error_handler, &ITKQueue.DefaultErrorHandler.handle/4)
+  @max_retries Application.get_env(:itk_queue, :max_retries, -1)
 
   @doc false
   def start_link(subscription = %Subscription{}) do
@@ -115,14 +116,32 @@ defmodule ITKQueue.Consumer do
 
   defp consume_message(message, channel, meta = %{delivery_tag: tag, headers: headers}, subscription = %Subscription{queue_name: queue_name, routing_key: routing_key, handler: handler}) do
     res = handler.(message, headers)
-    AMQP.Basic.ack(channel, tag)
 
     case res do
       {:retry, reason} ->
-        SyslogLogger.info(queue_name, routing_key, "#{message_uuid(message)}: Retrying - #{reason}")
-        Retry.delay(channel, subscription, message, meta)
+        retry_or_die(message, channel, meta, subscription, reason)
       _ ->
+        AMQP.Basic.ack(channel, tag)
         SyslogLogger.info(queue_name, routing_key, "#{message_uuid(message)}: Completed")
     end
+  end
+
+  defp retry_or_die(message, channel, meta = %{headers: headers}, subscription = %Subscription{}, reason) do
+    if @max_retries < 0 || Retry.count(headers) < @max_retries do
+      retry(message, channel, meta, subscription, reason)
+    else
+      reject(message, channel, meta, subscription, reason)
+    end
+  end
+
+  defp retry(message, channel, meta = %{delivery_tag: tag}, subscription = %Subscription{queue_name: queue_name, routing_key: routing_key}, reason) do
+    SyslogLogger.info(queue_name, routing_key, "#{message_uuid(message)}: Retrying - #{reason}")
+    Retry.delay(channel, subscription, message, meta)
+    AMQP.Basic.ack(channel, tag)
+  end
+
+  defp reject(message, channel, %{delivery_tag: tag}, %Subscription{queue_name: queue_name, routing_key: routing_key}, reason) do
+    SyslogLogger.info(queue_name, routing_key, "#{message_uuid(message)}: Rejecting - #{reason}")
+    AMQP.Basic.reject(channel, tag, requeue: false)
   end
 end
