@@ -31,8 +31,8 @@ defmodule ITKQueue.Retry do
         true -> 1_000 * retry_count
       end
 
-    AMQP.Queue.declare(channel, queue_name, durable: true, auto_delete: false, arguments: [{"x-dead-letter-exchange", :longstr, @exchange}, {"x-message-ttl", :long, expiration}, {"x-expires", :long, expiration * 2}, {"x-dead-letter-routing-key", :longstr, routing_key}])
-    AMQP.Queue.bind(channel, queue_name, @exchange, routing_key: queue_name)
+    {:ok, _} = AMQP.Queue.declare(channel, queue_name, durable: true, auto_delete: false, arguments: [{"x-dead-letter-exchange", :longstr, @exchange}, {"x-message-ttl", :long, expiration}, {"x-expires", :long, 30_000}, {"x-dead-letter-routing-key", :longstr, routing_key}])
+    :ok = AMQP.Queue.bind(channel, queue_name, @exchange, routing_key: queue_name)
     Publisher.publish(queue_name, message, headers)
   end
 
