@@ -79,8 +79,7 @@ defmodule ITKQueue.Consumer do
       e ->
         SyslogLogger.error(queue_name, routing_key, "#{message_uuid(message)}: Queue error #{Exception.format(:error, e, System.stacktrace)}")
         @error_handler.(queue_name, routing_key, payload, e)
-        Retry.delay(channel, subscription, message, meta)
-        AMQP.Basic.ack(channel, tag)
+        retry_or_die(message, channel, meta, subscription, Exception.message(e))
     end
   end
 
