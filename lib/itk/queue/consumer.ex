@@ -63,7 +63,7 @@ defmodule ITKQueue.Consumer do
     {:ok, %{channel: channel, subscription: subscription}}
   end
 
-  defp consume(channel, meta = %{delivery_tag: tag, headers: headers}, payload, subscription = %Subscription{queue_name: queue_name, routing_key: routing_key, handler: handler}) do
+  defp consume(channel, meta = %{headers: headers}, payload, subscription = %Subscription{queue_name: queue_name, routing_key: routing_key}) do
     message = payload |> parse_payload |> set_message_uuid
     retry_count = ITKQueue.Headers.get(headers, "retry_count")
 
@@ -78,7 +78,6 @@ defmodule ITKQueue.Consumer do
     rescue
       e ->
         SyslogLogger.error(queue_name, routing_key, "#{message_uuid(message)}: Queue error #{Exception.format(:error, e, System.stacktrace)}")
-        @error_handler.(queue_name, routing_key, payload, e)
         retry_or_die(message, channel, meta, subscription, Exception.message(e))
     end
   end
@@ -125,12 +124,27 @@ defmodule ITKQueue.Consumer do
     end
   end
 
-  defp retry_or_die(message, channel, meta = %{headers: headers}, subscription = %Subscription{}, reason) do
-    if @max_retries < 0 || Retry.count(headers) < @max_retries do
+  defp retry_or_die(message, channel, meta = %{headers: headers}, subscription = %Subscription{}, reason) when is_bitstring(reason) do
+    if should_retry?(headers) do
       retry(message, channel, meta, subscription, reason)
     else
       reject(message, channel, meta, subscription, reason)
     end
+  end
+
+  defp retry_or_die(message, channel, meta = %{headers: headers}, subscription = %Subscription{queue_name: queue_name, routing_key: routing_key}, error) do
+    reason = Exception.message(error)
+
+    if should_retry?(headers) do
+      retry(message, channel, meta, subscription, reason)
+    else
+      @error_handler.(queue_name, routing_key, Poison.encode!(message), error)
+      reject(message, channel, meta, subscription, reason)
+    end
+  end
+
+  defp should_retry?(headers) do
+    @max_retries < 0 || Retry.count(headers) < @max_retries
   end
 
   defp retry(message, channel, meta = %{delivery_tag: tag}, subscription = %Subscription{queue_name: queue_name, routing_key: routing_key}, reason) do
