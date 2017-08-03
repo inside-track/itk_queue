@@ -89,7 +89,7 @@ defmodule ITKQueue.Publisher do
     stacktrace
     |> Exception.format_stacktrace
     |> String.split("\n")
-    |> Enum.reject(fn(m) -> Regex.match?(~r/^\s+\((elixir|itk_queue|phoenix|plug|cowboy)\)/, m) end)
+    |> Enum.reject(fn(m) -> Regex.match?(~r/^\s+\((elixir|stdlib|itk_queue|phoenix|plug|cowboy)\)/, m) end)
     |> List.first
     |> String.trim
   end
