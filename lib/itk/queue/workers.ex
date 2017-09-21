@@ -10,7 +10,9 @@ defmodule ITKQueue.Workers do
 
   @doc false
   def init(:ok) do
-    Process.send_after(self(), :start_workers, 5000)
+    if start_workers?() do
+      Process.send_after(self(), :start_workers, 5000)
+    end
     {:ok, %{}}
   end
 
@@ -26,5 +28,13 @@ defmodule ITKQueue.Workers do
     end
 
     {:noreply, state}
+  end
+
+  defp start_workers? do
+    case System.get_env("ITK_QUEUE_START_WORKERS") do
+      "true" -> true
+      nil -> true
+      _ -> false
+    end
   end
 end
