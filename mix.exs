@@ -2,13 +2,13 @@ defmodule ITKQueue.Mixfile do
   use Mix.Project
 
   @project_url "https://github.com/inside-track/itk_queue"
-  @version "0.4.2"
+  @version "0.5.0"
 
   def project do
     [
       app: :itk_queue,
       version: @version,
-      elixir: "~> 1.4",
+      elixir: "~> 1.5",
       description: "Provides convenience methods for subscribing to queues and publishing messages.",
       source_url: @project_url,
       homepage_url: @project_url,
@@ -29,7 +29,7 @@ defmodule ITKQueue.Mixfile do
 
   defp deps do
     [
-      {:poison, "~> 2.0"},
+      {:poison, "~> 3.0"},
       {:amqp, "~> 0.2"},
       {:httpoison, "~> 0.9.2"},
       {:uuid, "~> 1.1"},
