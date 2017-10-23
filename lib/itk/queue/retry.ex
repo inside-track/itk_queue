@@ -10,8 +10,6 @@ defmodule ITKQueue.Retry do
 
   alias ITKQueue.{Subscription, Publisher}
 
-  @exchange Application.get_env(:itk_queue, :amqp_exchange)
-
   @doc """
   Retry the given message after a delay.
 
@@ -31,12 +29,16 @@ defmodule ITKQueue.Retry do
         true -> 1_000 * retry_count
       end
 
-    {:ok, _} = AMQP.Queue.declare(channel, queue_name, durable: true, auto_delete: false, arguments: [{"x-dead-letter-exchange", :longstr, @exchange}, {"x-message-ttl", :long, expiration}, {"x-expires", :long, 30_000}, {"x-dead-letter-routing-key", :longstr, routing_key}])
-    :ok = AMQP.Queue.bind(channel, queue_name, @exchange, routing_key: queue_name)
+    {:ok, _} = AMQP.Queue.declare(channel, queue_name, durable: true, auto_delete: false, arguments: [{"x-dead-letter-exchange", :longstr, exchange()}, {"x-message-ttl", :long, expiration}, {"x-expires", :long, 30_000}, {"x-dead-letter-routing-key", :longstr, routing_key}])
+    :ok = AMQP.Queue.bind(channel, queue_name, exchange(), routing_key: queue_name)
     Publisher.publish(queue_name, message, headers)
   end
 
   def count(headers) do
     ITKQueue.Headers.get(headers, "retry_count", 0)
+  end
+
+  defp exchange do
+    Application.get_env(:itk_queue, :amqp_exchange)
   end
 end

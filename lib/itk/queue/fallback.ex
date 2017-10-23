@@ -1,13 +1,9 @@
 defmodule ITKQueue.Fallback do
   @moduledoc false
 
-  @endpoint Application.get_env(:itk_queue, :fallback_endpoint)
-  @username Application.get_env(:itk_queue, :fallback_username)
-  @password Application.get_env(:itk_queue, :fallback_password)
-
   @spec publish(routing_key :: String.t, message :: Map.t) :: no_return
   def publish(routing_key, message) do
-    do_publish(@endpoint, routing_key, message)
+    do_publish(endpoint(), routing_key, message)
   end
 
   defp do_publish(false, _, _), do: nil
@@ -19,9 +15,21 @@ defmodule ITKQueue.Fallback do
   end
 
   defp publish_options do
-    case [@username, @password] do
+    case [username(), password()] do
       [nil, nil] -> []
       [username, password] -> [hackney: [basic_auth: {username, password}]]
     end
+  end
+
+  defp endpoint do
+    Application.get_env(:itk_queue, :fallback_endpoint)
+  end
+
+  defp username do
+    Application.get_env(:itk_queue, :fallback_username)
+  end
+
+  defp password do
+    Application.get_env(:itk_queue, :fallback_password)
   end
 end

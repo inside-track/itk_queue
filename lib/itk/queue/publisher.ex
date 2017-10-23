@@ -6,7 +6,6 @@ defmodule ITKQueue.Publisher do
   alias ITKQueue.{Connection, Channel, Fallback, SyslogLogger}
 
   @name :itk_queue_publisher
-  @exchange Application.get_env(:itk_queue, :amqp_exchange)
 
   def start_link do
     GenServer.start_link(__MODULE__, :ok, [name: @name])
@@ -22,7 +21,7 @@ defmodule ITKQueue.Publisher do
     message = set_message_metadata(message, routing_key, stacktrace)
     {:ok, payload} = Poison.encode(message)
 
-    case AMQP.Basic.publish(channel, @exchange, routing_key, payload, persistent: true, headers: headers) do
+    case AMQP.Basic.publish(channel, exchange(), routing_key, payload, persistent: true, headers: headers) do
       :ok -> SyslogLogger.info(routing_key, "Publishing #{payload}")
       _ -> Fallback.publish(routing_key, message)
     end
@@ -101,5 +100,9 @@ defmodule ITKQueue.Publisher do
   defp hostname(_message) do
     {:ok, hostname} = :inet.gethostname
     hostname
+  end
+
+  defp exchange do
+    Application.get_env(:itk_queue, :amqp_exchange)
   end
 end

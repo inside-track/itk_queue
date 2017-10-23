@@ -3,9 +3,6 @@ defmodule ITKQueue.Channel do
   Provides methods for interacting with AMQP channels.
   """
 
-  @exchange Application.get_env(:itk_queue, :amqp_exchange)
-  @consumer_count Application.get_env(:itk_queue, :consumer_count, 10)
-
   @doc """
   Opens a topic channel on the given connection.
 
@@ -14,7 +11,7 @@ defmodule ITKQueue.Channel do
   @spec open(connection :: AMQP.Connection.t) :: AMQP.Channel.t
   def open(connection) do
     {:ok, channel} = AMQP.Channel.open(connection)
-    AMQP.Exchange.topic(channel, @exchange)
+    AMQP.Exchange.topic(channel, exchange())
     channel
   end
 
@@ -34,9 +31,17 @@ defmodule ITKQueue.Channel do
   """
   @spec bind(channel :: AMQP.Channel.t, queue_name :: String.t, routing_key :: String.t) :: AMQP.Channel.t
   def bind(channel, queue_name, routing_key) do
-    AMQP.Basic.qos(channel, prefetch_count: @consumer_count)
+    AMQP.Basic.qos(channel, prefetch_count: consumer_count())
     AMQP.Queue.declare(channel, queue_name, durable: true, auto_delete: false)
-    AMQP.Queue.bind(channel, queue_name, @exchange, routing_key: routing_key)
+    AMQP.Queue.bind(channel, queue_name, exchange(), routing_key: routing_key)
     channel
+  end
+
+  defp exchange do
+    Application.get_env(:itk_queue, :amqp_exchange)
+  end
+
+  defp consumer_count do
+    Application.get_env(:itk_queue, :consumer_count, 10)
   end
 end

@@ -5,7 +5,6 @@ defmodule ITKQueue.Connection do
 
   use GenServer
 
-  @url Application.get_env(:itk_queue, :amqp_url)
   @name :itk_queue_connection
 
   @doc false
@@ -41,7 +40,7 @@ defmodule ITKQueue.Connection do
 
   @spec do_connect() :: AMQP.Connection.t
   defp do_connect do
-    case AMQP.Connection.open(@url) do
+    case AMQP.Connection.open(amqp_url()) do
       {:ok, connection} ->
         Process.monitor(connection.pid)
         connection
@@ -49,5 +48,9 @@ defmodule ITKQueue.Connection do
         Process.sleep(1000)
         connect()
     end
+  end
+
+  defp amqp_url do
+    Application.get_env(:itk_queue, :amqp_url)
   end
 end
