@@ -6,8 +6,6 @@ defmodule ITKQueue do
 
   alias ITKQueue.{Publisher, ConsumerSupervisor, Subscription}
 
-  @running_library_tests Application.get_env(:itk_queue, :running_library_tests, false)
-
   @doc false
   def start(_type, _args) do
     opts = [strategy: :one_for_one, name: ITKQueue.Supervisor]
@@ -18,7 +16,7 @@ defmodule ITKQueue do
   end
 
   defp children(:test) do
-    if @running_library_tests  do
+    if running_library_tests?() do
       children()
     else
       []
@@ -56,7 +54,7 @@ defmodule ITKQueue do
 
   @spec subscribe(queue_name :: String.t, routing_key :: String.t, handler :: fun) :: {:ok, pid}
   def subscribe(queue_name, routing_key, handler) when is_function(handler, 2) do
-    if Mix.env == :test && !@running_library_tests do
+    if Mix.env == :test && !running_library_tests?() do
       {:ok, :ok}
     else
       subscription = %Subscription{queue_name: queue_name, routing_key: routing_key, handler: handler}
@@ -74,12 +72,16 @@ defmodule ITKQueue do
   """
   @spec publish(routing_key :: String.t, message :: Map.t) :: :ok
   def publish(routing_key, message) do
-    if Mix.env == :test && !@running_library_tests do
+    if Mix.env == :test && !running_library_tests?() do
       send self(), [:publish, routing_key, message]
       :ok
     else
       stacktrace = Process.info(self(), :current_stacktrace)
       Publisher.publish(routing_key, message, [], elem(stacktrace, 1))
     end
+  end
+
+  defp running_library_tests? do
+    Application.get_env(:itk_queue, :running_library_tests, false)
   end
 end

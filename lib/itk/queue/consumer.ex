@@ -9,10 +9,6 @@ defmodule ITKQueue.Consumer do
 
   alias ITKQueue.{Connection, Channel, Subscription, Retry, SyslogLogger}
 
-  @use_atom_keys Application.get_env(:itk_queue, :use_atom_keys, true)
-  @error_handler Application.get_env(:itk_queue, :error_handler, &ITKQueue.DefaultErrorHandler.handle/4)
-  @max_retries Application.get_env(:itk_queue, :max_retries, -1)
-
   @doc false
   def start_link(subscription = %Subscription{}) do
     GenServer.start_link(__MODULE__, subscription, [])
@@ -83,7 +79,7 @@ defmodule ITKQueue.Consumer do
   end
 
   defp parse_payload(payload) do
-    case @use_atom_keys do
+    case use_atom_keys?() do
       true -> Poison.Parser.parse!(payload, keys: :atoms)
       _ -> Poison.Parser.parse!(payload)
     end
@@ -138,13 +134,13 @@ defmodule ITKQueue.Consumer do
     if should_retry?(headers) do
       retry(message, channel, meta, subscription, reason)
     else
-      @error_handler.(queue_name, routing_key, Poison.encode!(message), error)
+      error_handler().(queue_name, routing_key, Poison.encode!(message), error)
       reject(message, channel, meta, subscription, reason)
     end
   end
 
   defp should_retry?(headers) do
-    @max_retries < 0 || Retry.count(headers) < @max_retries
+    max_retries() < 0 || Retry.count(headers) < max_retries()
   end
 
   defp retry(message, channel, meta = %{delivery_tag: tag}, subscription = %Subscription{queue_name: queue_name, routing_key: routing_key}, reason) do
@@ -156,5 +152,17 @@ defmodule ITKQueue.Consumer do
   defp reject(message, channel, %{delivery_tag: tag}, %Subscription{queue_name: queue_name, routing_key: routing_key}, reason) do
     SyslogLogger.info(queue_name, routing_key, "#{message_uuid(message)}: Rejecting - #{reason}")
     AMQP.Basic.reject(channel, tag, requeue: false)
+  end
+
+  defp use_atom_keys? do
+    Application.get_env(:itk_queue, :use_atom_keys, true)
+  end
+
+  defp error_handler do
+    Application.get_env(:itk_queue, :error_handler, &ITKQueue.DefaultErrorHandler.handle/4)
+  end
+
+  defp max_retries do
+    Application.get_env(:itk_queue, :max_retries, -1)
   end
 end
