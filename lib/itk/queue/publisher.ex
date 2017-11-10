@@ -36,6 +36,8 @@ defmodule ITKQueue.Publisher do
         SyslogLogger.info(routing_key, "Published `#{routing_key}` in #{formatted_diff(diff)}")
       end
     end)
+
+    :ok
   end
 
   defp set_message_metadata(message = %{"metadata" => metadata}, routing_key, stacktrace) do
