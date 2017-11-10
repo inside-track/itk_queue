@@ -16,19 +16,33 @@ defmodule ITKQueue.Publisher do
   end
 
   def handle_cast({:publish, routing_key, message, headers, stacktrace}, state) do
-    connection = Connection.connect()
-    channel = Channel.open(connection)
-    message = set_message_metadata(message, routing_key, stacktrace)
-    {:ok, payload} = Poison.encode(message)
+    start = System.monotonic_time()
 
-    case AMQP.Basic.publish(channel, exchange(), routing_key, payload, persistent: true, headers: headers) do
-      :ok -> SyslogLogger.info(routing_key, "Publishing #{payload}")
-      _ -> Fallback.publish(routing_key, message)
+    try do
+      connection = Connection.connect()
+      channel = Channel.open(connection)
+      message = set_message_metadata(message, routing_key, stacktrace)
+      {:ok, payload} = Poison.encode(message)
+
+      case AMQP.Basic.publish(channel, exchange(), routing_key, payload, persistent: true, headers: headers) do
+        :ok -> SyslogLogger.info(routing_key, "Publishing #{payload}")
+        _ ->
+          SyslogLogger.info(routing_key, "Failed to publish #{payload} - sending to fallback.")
+          Fallback.publish(routing_key, message)
+      end
+
+      Channel.close(channel)
+    after
+      stop = System.monotonic_time()
+      diff = System.convert_time_unit(stop - start, :native, :micro_seconds)
+      SyslogLogger.info(routing_key, "Published `#{routing_key}` in #{formatted_diff(diff)}")
     end
 
-    Channel.close(channel)
     {:noreply, state}
   end
+
+  defp formatted_diff(diff) when diff > 1000, do: [diff |> div(1000) |> Integer.to_string, "ms"]
+  defp formatted_diff(diff), do: [Integer.to_string(diff), "µs"]
 
   @doc """
   Publishes a message to the given routing key.
