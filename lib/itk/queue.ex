@@ -30,7 +30,6 @@ defmodule ITKQueue do
 
     [
       worker(ITKQueue.Connection, []),
-      worker(ITKQueue.Publisher, []),
       supervisor(ITKQueue.ConsumerSupervisor, []),
       worker(ITKQueue.Workers, [])
     ]
