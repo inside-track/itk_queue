@@ -3,23 +3,19 @@ defmodule ITKQueue.Connection do
   Manages connections to AMQP.
   """
 
-  use GenServer
-
-  @name :itk_queue_connection
-
   @doc false
-  def start_link do
-    GenServer.start_link(__MODULE__, :ok, [name: @name])
+  def start_link(opts) do
+    GenServer.start_link(__MODULE__, opts)
   end
 
   @doc false
-  def init(:ok) do
-    {:ok, %{}}
+  def init(opts) do
+    {:ok, %{url: Keyword.get(opts, :amqp_url)}}
   end
 
   @doc false
-  def handle_call(:connection, _from, state) do
-    connection = state[:connection] || do_connect()
+  def handle_call(:connection, _from, state = %{url: url}) do
+    connection = state[:connection] || do_connect(url)
     {:reply, connection, state |> Map.put(:connection, connection)}
   end
 
@@ -28,29 +24,15 @@ defmodule ITKQueue.Connection do
     {:noreply, state |> Map.delete(:connection)}
   end
 
-  @doc """
-  Retrieves a connection to AMQP. Either returns the existing connection or establishes a new one.
-
-  Returns an `AMQP.Connection`.
-  """
-  @spec connect() :: AMQP.Connection.t
-  def connect do
-    GenServer.call(@name, :connection)
-  end
-
-  @spec do_connect() :: AMQP.Connection.t
-  defp do_connect do
-    case AMQP.Connection.open(amqp_url()) do
+  @spec do_connect(url :: String.t) :: AMQP.Connection.t
+  defp do_connect(url) do
+    case AMQP.Connection.open(url) do
       {:ok, connection} ->
         Process.monitor(connection.pid)
         connection
       {:error, _} ->
         Process.sleep(1000)
-        connect()
+        do_connect(url)
     end
-  end
-
-  defp amqp_url do
-    Application.get_env(:itk_queue, :amqp_url)
   end
 end

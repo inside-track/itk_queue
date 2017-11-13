@@ -29,7 +29,7 @@ defmodule ITKQueue do
     import Supervisor.Spec
 
     [
-      worker(ITKQueue.Connection, []),
+      worker(ITKQueue.ConnectionPool, []),
       supervisor(ITKQueue.ConsumerSupervisor, []),
       worker(ITKQueue.Workers, [])
     ]

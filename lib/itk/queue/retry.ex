@@ -22,12 +22,7 @@ defmodule ITKQueue.Retry do
     headers = [{"retry_count", :long, retry_count}]
     identifier = DateTime.utc_now |> DateTime.to_unix(:nanoseconds)
     queue_name = "retry.queue.#{routing_key}.#{identifier}"
-
-    expiration =
-      cond do
-        retry_count > 10 -> 10_000
-        true -> 1_000 * retry_count
-      end
+    expiration = expiration_time(retry_count)
 
     {:ok, _} = AMQP.Queue.declare(channel, queue_name, durable: true, auto_delete: false, arguments: [{"x-dead-letter-exchange", :longstr, exchange()}, {"x-message-ttl", :long, expiration}, {"x-expires", :long, 30_000}, {"x-dead-letter-routing-key", :longstr, routing_key}])
     :ok = AMQP.Queue.bind(channel, queue_name, exchange(), routing_key: queue_name)
@@ -41,4 +36,7 @@ defmodule ITKQueue.Retry do
   defp exchange do
     Application.get_env(:itk_queue, :amqp_exchange)
   end
+
+  defp expiration_time(retry_count) when retry_count > 10, do: 10_000
+  defp expiration_time(retry_count), do: 1_000 * retry_count
 end

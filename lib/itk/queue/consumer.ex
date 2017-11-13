@@ -7,7 +7,7 @@ defmodule ITKQueue.Consumer do
 
   use GenServer
 
-  alias ITKQueue.{Connection, Channel, Subscription, Retry, SyslogLogger}
+  alias ITKQueue.{ConnectionPool, Channel, Subscription, Retry, SyslogLogger}
 
   @doc false
   def start_link(subscription = %Subscription{}) do
@@ -49,14 +49,15 @@ defmodule ITKQueue.Consumer do
 
   defp subscribe(subscription = %Subscription{queue_name: queue_name, routing_key: routing_key}) do
     SyslogLogger.info(queue_name, routing_key, "Subscribing to #{queue_name} (#{routing_key})")
-    connection = Connection.connect()
-    Process.monitor(connection.pid)
-    channel =
-      connection
-      |> Channel.open()
-      |> Channel.bind(queue_name, routing_key)
-    {:ok, _} = AMQP.Basic.consume(channel, queue_name, self())
-    {:ok, %{channel: channel, subscription: subscription}}
+    ConnectionPool.with_connection(fn(connection) ->
+      Process.monitor(connection.pid)
+      channel =
+        connection
+        |> Channel.open()
+        |> Channel.bind(queue_name, routing_key)
+      {:ok, _} = AMQP.Basic.consume(channel, queue_name, self())
+      {:ok, %{channel: channel, subscription: subscription}}
+    end)
   end
 
   defp consume(channel, meta = %{headers: headers}, payload, subscription = %Subscription{queue_name: queue_name, routing_key: routing_key}) do

@@ -1,4 +1,8 @@
 defmodule ITKQueue.SyslogLogger do
+  @moduledoc """
+  A logger that logs in the syslog format.
+  """
+
   defstruct queue_name: "", routing_key: ""
 
   alias ITKQueue.SyslogLogger
