@@ -17,17 +17,23 @@ defmodule ITKQueue.Workers do
   end
 
   def handle_info(:start_workers, state) do
-    Enum.each :application.loaded_applications(), fn {app, _, _} ->
-      {:ok, modules} = :application.get_key(app, :modules)
-      Enum.each modules, fn mod ->
-        case mod.module_info(:attributes)[:workers] do
-          nil -> nil
-          _workers -> mod.start_workers()
-        end
-      end
+    Enum.each :application.loaded_applications(), fn({app, _, _}) ->
+      start_workers_for_application(app)
     end
 
     {:noreply, state}
+  end
+
+  defp start_workers_for_application(app) do
+    {:ok, modules} = :application.get_key(app, :modules)
+    Enum.each(modules, &start_workers_for_module/1)
+  end
+
+  defp start_workers_for_module(module) do
+    case module.module_info(:attributes)[:workers] do
+      nil -> nil
+      _workers -> module.start_workers()
+    end
   end
 
   defp start_workers? do

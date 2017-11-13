@@ -1,7 +1,7 @@
 defmodule ITKQueue.Publisher do
   @moduledoc false
 
-  alias ITKQueue.{Connection, Channel, Fallback, SyslogLogger}
+  alias ITKQueue.{ConnectionPool, Channel, Fallback, SyslogLogger}
 
   @doc """
   Publishes a message to the given routing key.
@@ -17,19 +17,20 @@ defmodule ITKQueue.Publisher do
       start = System.monotonic_time()
 
       try do
-        connection = Connection.connect()
-        channel = Channel.open(connection)
-        message = set_message_metadata(message, routing_key, stacktrace)
-        {:ok, payload} = Poison.encode(message)
+        ConnectionPool.with_connection(fn(connection) ->
+          channel = Channel.open(connection)
+          message = set_message_metadata(message, routing_key, stacktrace)
+          {:ok, payload} = Poison.encode(message)
 
-        case AMQP.Basic.publish(channel, exchange(), routing_key, payload, persistent: true, headers: headers) do
-          :ok -> SyslogLogger.info(routing_key, "Publishing #{payload}")
-          _ ->
-            SyslogLogger.info(routing_key, "Failed to publish #{payload} - sending to fallback.")
-            Fallback.publish(routing_key, message)
-        end
+          case AMQP.Basic.publish(channel, exchange(), routing_key, payload, persistent: true, headers: headers) do
+            :ok -> SyslogLogger.info(routing_key, "Publishing #{payload}")
+            _ ->
+              SyslogLogger.info(routing_key, "Failed to publish #{payload} - sending to fallback.")
+              Fallback.publish(routing_key, message)
+          end
 
-        Channel.close(channel)
+          Channel.close(channel)
+        end)
       after
         stop = System.monotonic_time()
         diff = System.convert_time_unit(stop - start, :native, :micro_seconds)

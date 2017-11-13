@@ -3,12 +3,12 @@ defmodule ITKQueueTest do
 
   setup do
     on_exit fn ->
-      channel =
-        ITKQueue.Connection.connect()
-        |> ITKQueue.Channel.open()
-      AMQP.Queue.delete(channel, "my-test-queue-1")
-      AMQP.Queue.delete(channel, "my-test-queue-2")
-      ITKQueue.Channel.close(channel)
+      ITKQueue.ConnectionPool.with_connection(fn(connection) ->
+        channel = ITKQueue.Channel.open(connection)
+        AMQP.Queue.delete(channel, "my-test-queue-1")
+        AMQP.Queue.delete(channel, "my-test-queue-2")
+        ITKQueue.Channel.close(channel)
+      end)
     end
   end
 

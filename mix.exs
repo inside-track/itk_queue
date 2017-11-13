@@ -33,7 +33,9 @@ defmodule ITKQueue.Mixfile do
       {:amqp, "~> 0.2"},
       {:httpoison, "~> 0.9.2"},
       {:uuid, "~> 1.1"},
-      {:ex_doc, ">= 0.0.0", only: :dev}
+      {:poolboy, "~> 1.5"},
+      {:ex_doc, ">= 0.0.0", only: :dev},
+      {:credo, "~> 0.8", only: [:dev, :test]}
     ]
   end
 
