@@ -48,19 +48,15 @@ defmodule ITKQueue.ConnectionPool do
     end)
   end
 
-  defp config do
-    Application.get_env(:itk_queue, []) || []
-  end
-
   defp pool_size do
-    Keyword.get(config(), :pool_size, 10)
+    Application.get_env(:itk_queue, :pool_size, 10)
   end
 
   defp max_overflow do
-    Keyword.get(config(), :max_overflow, 50)
+    Application.get_env(:itk_queue, :max_overflow, 50)
   end
 
   defp amqp_url do
-    Keyword.get(config(), :amqp_url, "amqp://localhost:5672")
+    Application.get_env(:itk_queue, :amqp_url, "amqp://localhost:5672")
   end
 end
