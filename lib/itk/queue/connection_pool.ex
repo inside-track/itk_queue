@@ -23,7 +23,9 @@ defmodule ITKQueue.ConnectionPool do
       name: {:local, @pool_name},
       worker_module: Connection,
       size: pool_size(),
-      max_overflow: max_overflow()
+      # max_overflow is always zero because if a subscription is made on a channel using an overflow connection
+      # that connection will be closed eventually and that will break the subscription
+      max_overflow: 0
     ]
 
     children = [
@@ -50,10 +52,6 @@ defmodule ITKQueue.ConnectionPool do
 
   defp pool_size do
     Application.get_env(:itk_queue, :pool_size, 10)
-  end
-
-  defp max_overflow do
-    Application.get_env(:itk_queue, :max_overflow, 50)
   end
 
   defp amqp_url do
