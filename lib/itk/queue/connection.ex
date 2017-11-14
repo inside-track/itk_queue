@@ -10,6 +10,7 @@ defmodule ITKQueue.Connection do
 
   @doc false
   def init(opts) do
+    Process.flag(:trap_exit, true)
     {:ok, %{url: Keyword.get(opts, :amqp_url)}}
   end
 
@@ -34,5 +35,14 @@ defmodule ITKQueue.Connection do
         Process.sleep(1000)
         do_connect(url)
     end
+  end
+
+  def terminate(_reason, %{connection: connection}) do
+    AMQP.Connection.close(connection)
+    :normal
+  end
+
+  def terminate(_reason, _state) do
+    :normal
   end
 end
