@@ -16,15 +16,34 @@ defmodule ITKQueue.Retry do
   The message will go into a temporary "retry" queue and, after a delay, will be republished with the
   original routing key.
   """
-  @spec delay(channel :: AMQP.Channel.t, subscription :: Subscription.t, message :: Map.t, meta :: Map.t) :: no_return
-  def delay(channel, %Subscription{routing_key: routing_key}, message, %{headers: headers}) when is_map(message) do
+  @spec delay(
+          channel :: AMQP.Channel.t(),
+          subscription :: Subscription.t(),
+          message :: Map.t(),
+          meta :: Map.t()
+        ) :: no_return
+  def delay(channel, %Subscription{routing_key: routing_key}, message, %{headers: headers})
+      when is_map(message) do
     retry_count = count(headers) + 1
     headers = [{"retry_count", :long, retry_count}]
-    identifier = DateTime.utc_now |> DateTime.to_unix(:nanoseconds)
+    identifier = DateTime.utc_now() |> DateTime.to_unix(:nanoseconds)
     queue_name = "retry.queue.#{routing_key}.#{identifier}"
     expiration = expiration_time(retry_count)
 
-    {:ok, _} = AMQP.Queue.declare(channel, queue_name, durable: true, auto_delete: false, arguments: [{"x-dead-letter-exchange", :longstr, exchange()}, {"x-message-ttl", :long, expiration}, {"x-expires", :long, 30_000}, {"x-dead-letter-routing-key", :longstr, routing_key}])
+    {:ok, _} =
+      AMQP.Queue.declare(
+        channel,
+        queue_name,
+        durable: true,
+        auto_delete: false,
+        arguments: [
+          {"x-dead-letter-exchange", :longstr, exchange()},
+          {"x-message-ttl", :long, expiration},
+          {"x-expires", :long, 30_000},
+          {"x-dead-letter-routing-key", :longstr, routing_key}
+        ]
+      )
+
     :ok = AMQP.Queue.bind(channel, queue_name, exchange(), routing_key: queue_name)
     Publisher.publish(queue_name, message, headers)
   end

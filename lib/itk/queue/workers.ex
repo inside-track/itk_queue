@@ -13,13 +13,14 @@ defmodule ITKQueue.Workers do
     if start_workers?() do
       Process.send_after(self(), :start_workers, 5000)
     end
+
     {:ok, %{}}
   end
 
   def handle_info(:start_workers, state) do
-    Enum.each :application.loaded_applications(), fn({app, _, _}) ->
+    Enum.each(:application.loaded_applications(), fn {app, _, _} ->
       start_workers_for_application(app)
-    end
+    end)
 
     {:noreply, state}
   end

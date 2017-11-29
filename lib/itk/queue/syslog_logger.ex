@@ -28,7 +28,11 @@ defmodule ITKQueue.SyslogLogger do
   end
 
   defp log(logger, priority, message) do
-    IO.puts ~s(<#{priority}>1 #{timestamp()} #{hostname()} #{name(logger)} - - [queue@0 name="#{logger.queue_name}" routing_key="#{logger.routing_key}"] #{message}")
+    IO.puts(
+      ~s(<#{priority}>1 #{timestamp()} #{hostname()} #{name(logger)} - - [queue@0 name="#{
+        logger.queue_name
+      }" routing_key="#{logger.routing_key}"] #{message}")
+    )
   end
 
   defp name(logger) do
@@ -36,11 +40,11 @@ defmodule ITKQueue.SyslogLogger do
   end
 
   defp timestamp do
-    DateTime.utc_now |> DateTime.to_iso8601
+    DateTime.utc_now() |> DateTime.to_iso8601()
   end
 
   defp hostname do
-    {:ok, hostname} = :inet.gethostname
+    {:ok, hostname} = :inet.gethostname()
     hostname
   end
 end

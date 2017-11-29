@@ -29,7 +29,7 @@ defmodule ITKQueue.ConnectionPool do
     ]
 
     children = [
-      :poolboy.child_spec(@pool_name, pool_opts, [amqp_url: amqp_url()])
+      :poolboy.child_spec(@pool_name, pool_opts, amqp_url: amqp_url())
     ]
 
     supervise(children, strategy: :one_for_one, name: __MODULE__)
@@ -44,7 +44,7 @@ defmodule ITKQueue.ConnectionPool do
     end)
   """
   def with_connection(action) do
-    :poolboy.transaction(@pool_name, fn(pid) ->
+    :poolboy.transaction(@pool_name, fn pid ->
       connection = GenServer.call(pid, :connection)
       action.(connection)
     end)

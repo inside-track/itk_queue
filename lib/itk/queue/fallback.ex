@@ -1,7 +1,7 @@
 defmodule ITKQueue.Fallback do
   @moduledoc false
 
-  @spec publish(routing_key :: String.t, message :: Map.t) :: no_return
+  @spec publish(routing_key :: String.t(), message :: Map.t()) :: no_return
   def publish(routing_key, message) do
     do_publish(endpoint(), routing_key, message)
   end
@@ -10,8 +10,14 @@ defmodule ITKQueue.Fallback do
 
   defp do_publish(endpoint, routing_key, message) do
     {:ok, payload} = Poison.encode(message)
+
     {:ok, %HTTPoison.Response{status_code: 201}} =
-      HTTPoison.post(endpoint, {:form, [routing_key: routing_key, content: payload]}, [{"Content-Type", "application/x-www-form-urlencoded"}], publish_options())
+      HTTPoison.post(
+        endpoint,
+        {:form, [routing_key: routing_key, content: payload]},
+        [{"Content-Type", "application/x-www-form-urlencoded"}],
+        publish_options()
+      )
   end
 
   defp publish_options do

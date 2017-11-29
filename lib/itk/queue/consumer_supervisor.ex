@@ -24,7 +24,7 @@ defmodule ITKQueue.ConsumerSupervisor do
   @doc """
   Start a new supervised consumer for a subscription.
   """
-  @spec start_consumer(subscription :: Subscription.t) :: {:ok, pid}
+  @spec start_consumer(subscription :: Subscription.t()) :: {:ok, pid}
   def start_consumer(subscription = %Subscription{}) do
     Supervisor.start_child(@name, [subscription])
   end

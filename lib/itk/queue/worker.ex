@@ -28,7 +28,7 @@ defmodule ITKQueue.Worker do
   defmacro __before_compile__(_env) do
     quote do
       def start_workers do
-        Enum.each(@workers, fn(worker_name) -> apply(__MODULE__, worker_name, []) end)
+        Enum.each(@workers, fn worker_name -> apply(__MODULE__, worker_name, []) end)
       end
     end
   end

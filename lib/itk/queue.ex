@@ -10,7 +10,7 @@ defmodule ITKQueue do
   def start(_type, _args) do
     opts = [strategy: :one_for_one, name: ITKQueue.Supervisor]
 
-    Mix.env
+    Mix.env()
     |> children
     |> Supervisor.start_link(opts)
   end
@@ -46,17 +46,24 @@ defmodule ITKQueue do
       iex> ITKQueue.subscribe("students-data-sync", "data.sync", fn(message) -> IO.puts(inspect(message)) end)
 
   """
-  @spec subscribe(queue_name :: String.t, routing_key :: String.t, handler :: fun) :: {:ok, pid}
+  @spec subscribe(queue_name :: String.t(), routing_key :: String.t(), handler :: fun) ::
+          {:ok, pid}
   def subscribe(queue_name, routing_key, handler) when is_function(handler, 1) do
-    subscribe(queue_name, routing_key, fn(message, _headers) -> handler.(message) end)
+    subscribe(queue_name, routing_key, fn message, _headers -> handler.(message) end)
   end
 
-  @spec subscribe(queue_name :: String.t, routing_key :: String.t, handler :: fun) :: {:ok, pid}
+  @spec subscribe(queue_name :: String.t(), routing_key :: String.t(), handler :: fun) ::
+          {:ok, pid}
   def subscribe(queue_name, routing_key, handler) when is_function(handler, 2) do
-    if Mix.env == :test && !running_library_tests?() do
+    if Mix.env() == :test && !running_library_tests?() do
       {:ok, :ok}
     else
-      subscription = %Subscription{queue_name: queue_name, routing_key: routing_key, handler: handler}
+      subscription = %Subscription{
+        queue_name: queue_name,
+        routing_key: routing_key,
+        handler: handler
+      }
+
       {:ok, _pid} = ConsumerSupervisor.start_consumer(subscription)
     end
   end
@@ -69,10 +76,10 @@ defmodule ITKQueue do
       iex> ITKQueue.publish("data.sync", %{type: "user", data: %{name: "Test User"}})
 
   """
-  @spec publish(routing_key :: String.t, message :: Map.t) :: :ok
+  @spec publish(routing_key :: String.t(), message :: Map.t()) :: :ok
   def publish(routing_key, message) do
-    if Mix.env == :test && !running_library_tests?() do
-      send self(), [:publish, routing_key, message]
+    if Mix.env() == :test && !running_library_tests?() do
+      send(self(), [:publish, routing_key, message])
       :ok
     else
       stacktrace = Process.info(self(), :current_stacktrace)

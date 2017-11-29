@@ -9,11 +9,12 @@ defmodule ITKQueue.Mixfile do
       app: :itk_queue,
       version: @version,
       elixir: "~> 1.5",
-      description: "Provides convenience methods for subscribing to queues and publishing messages.",
+      description:
+        "Provides convenience methods for subscribing to queues and publishing messages.",
       source_url: @project_url,
       homepage_url: @project_url,
-      build_embedded: Mix.env == :prod,
-      start_permanent: Mix.env == :prod,
+      build_embedded: Mix.env() == :prod,
+      start_permanent: Mix.env() == :prod,
       package: package(),
       docs: [main: "readme", extras: ["README.md"]],
       deps: deps()

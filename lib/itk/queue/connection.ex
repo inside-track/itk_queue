@@ -25,12 +25,13 @@ defmodule ITKQueue.Connection do
     {:noreply, state |> Map.delete(:connection)}
   end
 
-  @spec do_connect(url :: String.t) :: AMQP.Connection.t
+  @spec do_connect(url :: String.t()) :: AMQP.Connection.t()
   defp do_connect(url) do
     case AMQP.Connection.open(url) do
       {:ok, connection} ->
         Process.monitor(connection.pid)
         connection
+
       {:error, _} ->
         Process.sleep(1000)
         do_connect(url)
