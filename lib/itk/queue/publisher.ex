@@ -1,7 +1,9 @@
+require Logger
+
 defmodule ITKQueue.Publisher do
   @moduledoc false
 
-  alias ITKQueue.{ConnectionPool, Channel, Fallback, SyslogLogger}
+  alias ITKQueue.{ConnectionPool, Channel, Fallback}
 
   @doc """
   Publishes a message to the given routing key.
@@ -32,12 +34,12 @@ defmodule ITKQueue.Publisher do
                  headers: headers
                ) do
             :ok ->
-              SyslogLogger.info(routing_key, "Publishing #{payload}")
+              Logger.info("Publishing #{payload}", routing_key: routing_key)
 
             _ ->
-              SyslogLogger.info(
-                routing_key,
-                "Failed to publish #{payload} - sending to fallback."
+              Logger.info(
+                "Failed to publish #{payload} - sending to fallback.",
+                routing_key: routing_key
               )
 
               Fallback.publish(routing_key, message)
@@ -48,7 +50,11 @@ defmodule ITKQueue.Publisher do
       after
         stop = System.monotonic_time()
         diff = System.convert_time_unit(stop - start, :native, :micro_seconds)
-        SyslogLogger.info(routing_key, "Published `#{routing_key}` in #{formatted_diff(diff)}")
+
+        Logger.info(
+          "Published `#{routing_key}` in #{formatted_diff(diff)}",
+          routing_key: routing_key
+        )
       end
     end)
   end

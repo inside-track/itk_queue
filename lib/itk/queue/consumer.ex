@@ -1,3 +1,5 @@
+require Logger
+
 defmodule ITKQueue.Consumer do
   @moduledoc """
   Monitors a queue for new messages and passes them to the subscribed handler.
@@ -7,7 +9,7 @@ defmodule ITKQueue.Consumer do
 
   use GenServer
 
-  alias ITKQueue.{ConnectionPool, Channel, Subscription, Retry, SyslogLogger}
+  alias ITKQueue.{ConnectionPool, Channel, Subscription, Retry}
 
   @doc false
   def start_link(subscription = %Subscription{}) do
@@ -51,7 +53,11 @@ defmodule ITKQueue.Consumer do
   end
 
   defp subscribe(subscription = %Subscription{queue_name: queue_name, routing_key: routing_key}) do
-    SyslogLogger.info(queue_name, routing_key, "Subscribing to #{queue_name} (#{routing_key})")
+    Logger.info(
+      "Subscribing to #{queue_name} (#{routing_key})",
+      queue_name: queue_name,
+      routing_key: routing_key
+    )
 
     ConnectionPool.with_connection(fn connection ->
       Process.monitor(connection.pid)
@@ -76,16 +82,18 @@ defmodule ITKQueue.Consumer do
     retry_count = ITKQueue.Headers.get(headers, "retry_count")
 
     if retry_count do
-      SyslogLogger.info(
-        queue_name,
-        routing_key,
-        "#{message_uuid(message)}: Starting retry ##{retry_count} on #{payload}"
+      Logger.info(
+        "Starting retry ##{retry_count} on #{payload}",
+        message_id: message_uuid(message),
+        queue_name: queue_name,
+        routing_key: routing_key
       )
     else
-      SyslogLogger.info(
-        queue_name,
-        routing_key,
-        "#{message_uuid(message)}: Starting on #{payload}"
+      Logger.info(
+        "Starting on #{payload}",
+        message_id: message_uuid(message),
+        queue_name: queue_name,
+        routing_key: routing_key
       )
     end
 
@@ -93,12 +101,11 @@ defmodule ITKQueue.Consumer do
       consume_message(message, channel, meta, subscription)
     rescue
       e ->
-        SyslogLogger.error(
-          queue_name,
-          routing_key,
-          "#{message_uuid(message)}: Queue error #{
-            Exception.format(:error, e, System.stacktrace())
-          }"
+        Logger.error(
+          "Queue error #{Exception.format(:error, e, System.stacktrace())}",
+          message_id: message_uuid(message),
+          queue_name: queue_name,
+          routing_key: routing_key
         )
 
         retry_or_die(message, channel, meta, subscription, Exception.message(e))
@@ -154,7 +161,13 @@ defmodule ITKQueue.Consumer do
 
       _ ->
         AMQP.Basic.ack(channel, tag)
-        SyslogLogger.info(queue_name, routing_key, "#{message_uuid(message)}: Completed")
+
+        Logger.info(
+          "Completed",
+          message_id: message_uuid(message),
+          queue_name: queue_name,
+          routing_key: routing_key
+        )
     end
   end
 
@@ -201,7 +214,13 @@ defmodule ITKQueue.Consumer do
          subscription = %Subscription{queue_name: queue_name, routing_key: routing_key},
          reason
        ) do
-    SyslogLogger.info(queue_name, routing_key, "#{message_uuid(message)}: Retrying - #{reason}")
+    Logger.info(
+      "Retrying - #{reason}",
+      message_id: message_uuid(message),
+      queue_name: queue_name,
+      routing_key: routing_key
+    )
+
     Retry.delay(channel, subscription, message, meta)
     AMQP.Basic.ack(channel, tag)
   end
@@ -213,7 +232,13 @@ defmodule ITKQueue.Consumer do
          %Subscription{queue_name: queue_name, routing_key: routing_key},
          reason
        ) do
-    SyslogLogger.info(queue_name, routing_key, "#{message_uuid(message)}: Rejecting - #{reason}")
+    Logger.info(
+      "Rejecting - #{reason}",
+      message_id: message_uuid(message),
+      queue_name: queue_name,
+      routing_key: routing_key
+    )
+
     AMQP.Basic.reject(channel, tag, requeue: false)
   end
 
