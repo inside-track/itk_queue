@@ -108,7 +108,7 @@ defmodule ITKQueue.Consumer do
           routing_key: routing_key
         )
 
-        retry_or_die(message, channel, meta, subscription, Exception.message(e))
+        retry_or_die(message, channel, meta, subscription, e)
     end
   end
 
