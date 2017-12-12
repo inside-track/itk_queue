@@ -39,27 +39,32 @@ defmodule ITKQueue.Publisher do
           stacktrace :: any
         ) :: no_return
   def publish(routing_key, message, headers, stacktrace) when is_bitstring(routing_key) do
-    Task.async(fn ->
-      start = System.monotonic_time()
+    if Mix.env() == :test && !running_library_tests?() do
+      send(self(), [:publish, routing_key, message])
+      :ok
+    else
+      Task.async(fn ->
+        start = System.monotonic_time()
 
-      {ref, connection} = ConnectionPool.checkout()
-      wait_stop = System.monotonic_time()
+        {ref, connection} = ConnectionPool.checkout()
+        wait_stop = System.monotonic_time()
 
-      try do
-        publish_message(connection, routing_key, message, headers, stacktrace)
-      after
-        ConnectionPool.checkin(ref)
-      end
+        try do
+          publish_message(connection, routing_key, message, headers, stacktrace)
+        after
+          ConnectionPool.checkin(ref)
+        end
 
-      stop = System.monotonic_time()
-      wait_diff = diff_times(start, wait_stop)
-      diff = diff_times(wait_stop, stop)
+        stop = System.monotonic_time()
+        wait_diff = diff_times(start, wait_stop)
+        diff = diff_times(wait_stop, stop)
 
-      Logger.info(
-        "Published `#{routing_key}` in #{diff} (waited #{wait_diff})",
-        routing_key: routing_key
-      )
-    end)
+        Logger.info(
+          "Published `#{routing_key}` in #{diff} (waited #{wait_diff})",
+          routing_key: routing_key
+        )
+      end)
+    end
   end
 
   @spec publish(
@@ -83,47 +88,47 @@ defmodule ITKQueue.Publisher do
         ) :: no_return
   def publish(connection = %AMQP.Connection{}, routing_key, message, headers, stacktrace)
       when is_bitstring(routing_key) do
-    start = System.monotonic_time()
-
-    publish_message(connection, routing_key, message, headers, stacktrace)
-
-    stop = System.monotonic_time()
-    diff = diff_times(start, stop)
-
-    Logger.info("Published `#{routing_key}` in #{diff}", routing_key: routing_key)
-  end
-
-  defp publish_message(connection, routing_key, message, headers, stacktrace) do
     if Mix.env() == :test && !running_library_tests?() do
       send(self(), [:publish, routing_key, message])
       :ok
     else
-      channel = Channel.open(connection)
-      message = set_message_metadata(message, routing_key, stacktrace)
-      {:ok, payload} = Poison.encode(message)
+      start = System.monotonic_time()
 
-      case AMQP.Basic.publish(
-             channel,
-             exchange(),
-             routing_key,
-             payload,
-             persistent: true,
-             headers: headers
-           ) do
-        :ok ->
-          Logger.info("Publishing #{payload}", routing_key: routing_key)
+      publish_message(connection, routing_key, message, headers, stacktrace)
 
-        _ ->
-          Logger.info(
-            "Failed to publish #{payload} - sending to fallback.",
-            routing_key: routing_key
-          )
+      stop = System.monotonic_time()
+      diff = diff_times(start, stop)
 
-          Fallback.publish(routing_key, message)
-      end
-
-      Channel.close(channel)
+      Logger.info("Published `#{routing_key}` in #{diff}", routing_key: routing_key)
     end
+  end
+
+  defp publish_message(connection, routing_key, message, headers, stacktrace) do
+    channel = Channel.open(connection)
+    message = set_message_metadata(message, routing_key, stacktrace)
+    {:ok, payload} = Poison.encode(message)
+
+    case AMQP.Basic.publish(
+           channel,
+           exchange(),
+           routing_key,
+           payload,
+           persistent: true,
+           headers: headers
+         ) do
+      :ok ->
+        Logger.info("Publishing #{payload}", routing_key: routing_key)
+
+      _ ->
+        Logger.info(
+          "Failed to publish #{payload} - sending to fallback.",
+          routing_key: routing_key
+        )
+
+        Fallback.publish(routing_key, message)
+    end
+
+    Channel.close(channel)
   end
 
   defp set_message_metadata(message = %{"metadata" => metadata}, routing_key, stacktrace) do
