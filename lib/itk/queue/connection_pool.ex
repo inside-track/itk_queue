@@ -66,7 +66,7 @@ defmodule ITKQueue.ConnectionPool do
   """
   def checkout do
     if Mix.env() == :test && !running_library_tests?() do
-      {nil, nil}
+      {self(), %AMQP.Connection{}}
     else
       pid = :poolboy.checkout(@pool_name)
       connection = GenServer.call(pid, :connection)
