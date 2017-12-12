@@ -7,56 +7,123 @@ defmodule ITKQueue.Publisher do
 
   @doc """
   Publishes a message to the given routing key.
+
+  If a connection is provided it will be used. Otherwise a connection
+  will be retrieved from the connection pool, used, and returned.
+
+  If you will be publishing several messages in a short period of time
+  checking out a single connection to use for all of your publishing will
+  be more efficient.
   """
-  @spec publish(routing_key :: String.t(), message :: Map.t(), headers :: Keyword.t()) ::
-          no_return
-  def publish(routing_key, message, headers \\ []) do
+  @spec publish(routing_key :: String.t(), message :: map) :: no_return
+  def publish(routing_key, message) when is_bitstring(routing_key) do
+    publish(routing_key, message, [])
+  end
+
+  @spec publish(routing_key :: String.t(), message :: map, headers :: Keyword.t()) :: no_return
+  def publish(routing_key, message, headers) when is_bitstring(routing_key) do
     stacktrace = Process.info(self(), :current_stacktrace)
     publish(routing_key, message, headers, elem(stacktrace, 1))
   end
 
-  def publish(routing_key, message, headers, stacktrace) do
+  @spec publish(connection :: AMQP.Connection.t(), routing_key :: String.t(), message :: map) ::
+          no_return
+  def publish(connection, routing_key, message) when is_bitstring(routing_key) do
+    publish(connection, routing_key, message, [])
+  end
+
+  @spec publish(
+          routing_key :: String.t(),
+          message :: map,
+          headers :: Keyword.t(),
+          stacktrace :: any
+        ) :: no_return
+  def publish(routing_key, message, headers, stacktrace) when is_bitstring(routing_key) do
     Task.async(fn ->
       start = System.monotonic_time()
 
+      {ref, connection} = ConnectionPool.checkout()
+      wait_stop = System.monotonic_time()
+
       try do
-        ConnectionPool.with_connection(fn connection ->
-          channel = Channel.open(connection)
-          message = set_message_metadata(message, routing_key, stacktrace)
-          {:ok, payload} = Poison.encode(message)
-
-          case AMQP.Basic.publish(
-                 channel,
-                 exchange(),
-                 routing_key,
-                 payload,
-                 persistent: true,
-                 headers: headers
-               ) do
-            :ok ->
-              Logger.info("Publishing #{payload}", routing_key: routing_key)
-
-            _ ->
-              Logger.info(
-                "Failed to publish #{payload} - sending to fallback.",
-                routing_key: routing_key
-              )
-
-              Fallback.publish(routing_key, message)
-          end
-
-          Channel.close(channel)
-        end)
+        publish_message(connection, routing_key, message, headers, stacktrace)
       after
-        stop = System.monotonic_time()
-        diff = System.convert_time_unit(stop - start, :native, :micro_seconds)
-
-        Logger.info(
-          "Published `#{routing_key}` in #{formatted_diff(diff)}",
-          routing_key: routing_key
-        )
+        ConnectionPool.checkin(ref)
       end
+
+      stop = System.monotonic_time()
+      wait_diff = diff_times(start, wait_stop)
+      diff = diff_times(wait_stop, stop)
+
+      Logger.info(
+        "Published `#{routing_key}` in #{diff} (waited #{wait_diff})",
+        routing_key: routing_key
+      )
     end)
+  end
+
+  @spec publish(
+          connection :: AMQP.Connection.t(),
+          routing_key :: String.t(),
+          message :: map,
+          headers :: Keyword.t()
+        ) :: no_return
+  def publish(connection = %AMQP.Connection{}, routing_key, message, headers)
+      when is_bitstring(routing_key) do
+    stacktrace = Process.info(self(), :current_stacktrace)
+    publish(connection, routing_key, message, headers, elem(stacktrace, 1))
+  end
+
+  @spec publish(
+          connection :: AMQP.Connection.t(),
+          routing_key :: String.t(),
+          message :: map,
+          headers :: Keyword.t(),
+          stacktrace :: any
+        ) :: no_return
+  def publish(connection = %AMQP.Connection{}, routing_key, message, headers, stacktrace)
+      when is_bitstring(routing_key) do
+    start = System.monotonic_time()
+
+    publish_message(connection, routing_key, message, headers, stacktrace)
+
+    stop = System.monotonic_time()
+    diff = diff_times(start, stop)
+
+    Logger.info("Published `#{routing_key}` in #{diff}", routing_key: routing_key)
+  end
+
+  defp publish_message(connection, routing_key, message, headers, stacktrace) do
+    if Mix.env() == :test && !running_library_tests?() do
+      send(self(), [:publish, routing_key, message])
+      :ok
+    else
+      channel = Channel.open(connection)
+      message = set_message_metadata(message, routing_key, stacktrace)
+      {:ok, payload} = Poison.encode(message)
+
+      case AMQP.Basic.publish(
+             channel,
+             exchange(),
+             routing_key,
+             payload,
+             persistent: true,
+             headers: headers
+           ) do
+        :ok ->
+          Logger.info("Publishing #{payload}", routing_key: routing_key)
+
+        _ ->
+          Logger.info(
+            "Failed to publish #{payload} - sending to fallback.",
+            routing_key: routing_key
+          )
+
+          Fallback.publish(routing_key, message)
+      end
+
+      Channel.close(channel)
+    end
   end
 
   defp set_message_metadata(message = %{"metadata" => metadata}, routing_key, stacktrace) do
@@ -126,6 +193,18 @@ defmodule ITKQueue.Publisher do
     Application.get_env(:itk_queue, :amqp_exchange)
   end
 
-  defp formatted_diff(diff) when diff > 1000, do: [diff |> div(1000) |> Integer.to_string(), "ms"]
-  defp formatted_diff(diff), do: [Integer.to_string(diff), "µs"]
+  defp diff_times(start, stop) do
+    diff = stop - start
+
+    diff
+    |> System.convert_time_unit(:native, :micro_seconds)
+    |> format_diff
+  end
+
+  defp format_diff(diff) when diff > 1000, do: [diff |> div(1000) |> Integer.to_string(), "ms"]
+  defp format_diff(diff), do: [Integer.to_string(diff), "µs"]
+
+  defp running_library_tests? do
+    Application.get_env(:itk_queue, :running_library_tests, false)
+  end
 end

@@ -78,13 +78,8 @@ defmodule ITKQueue do
   """
   @spec publish(routing_key :: String.t(), message :: Map.t()) :: :ok
   def publish(routing_key, message) do
-    if Mix.env() == :test && !running_library_tests?() do
-      send(self(), [:publish, routing_key, message])
-      :ok
-    else
-      stacktrace = Process.info(self(), :current_stacktrace)
-      Publisher.publish(routing_key, message, [], elem(stacktrace, 1))
-    end
+    stacktrace = Process.info(self(), :current_stacktrace)
+    Publisher.publish(routing_key, message, [], elem(stacktrace, 1))
   end
 
   defp running_library_tests? do
