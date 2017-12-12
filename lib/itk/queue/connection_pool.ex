@@ -36,7 +36,10 @@ defmodule ITKQueue.ConnectionPool do
   end
 
   @doc """
-  Provides a way to obtain a connection from the pool.
+  Provides a connection from the connection pool to perform an action.
+
+  This connection will automatically be returned to the pool when the
+  action is complete.
 
   Example:
     ITKQueue.ConnectionPool.with_connection(fn(connection) ->
@@ -50,11 +53,45 @@ defmodule ITKQueue.ConnectionPool do
     end)
   end
 
+  @doc """
+  Retrieves a connection from the pool.
+
+  You are responsible for returning this connection to the pool when you
+  are done with it.
+
+  Example:
+    {ref, connection} = ITKQueue.ConnectionPool.checkout
+    # ... do something with the connection
+    ITKQueue.ConnectionPool.checkin(ref)
+  """
+  def checkout do
+    if Mix.env() == :test && !running_library_tests?() do
+      {nil, nil}
+    else
+      pid = :poolboy.checkout(@pool_name)
+      connection = GenServer.call(pid, :connection)
+      {pid, connection}
+    end
+  end
+
+  @doc """
+  Return a connection to the pool.
+  """
+  def checkin(pid) do
+    unless Mix.env() == :test && !running_library_tests?() do
+      :poolboy.checkin(@pool_name, pid)
+    end
+  end
+
   defp pool_size do
     Application.get_env(:itk_queue, :pool_size, 10)
   end
 
   defp amqp_url do
     Application.get_env(:itk_queue, :amqp_url, "amqp://localhost:5672")
+  end
+
+  defp running_library_tests? do
+    Application.get_env(:itk_queue, :running_library_tests, false)
   end
 end
