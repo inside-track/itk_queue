@@ -28,7 +28,8 @@ defmodule ITKQueue.Publisher do
 
   @spec publish(connection :: AMQP.Connection.t(), routing_key :: String.t(), message :: map) ::
           no_return
-  def publish(connection, routing_key, message) when is_bitstring(routing_key) do
+  def publish(connection = %AMQP.Connection{}, routing_key, message)
+      when is_bitstring(routing_key) do
     publish(connection, routing_key, message, [])
   end
 

@@ -46,8 +46,21 @@ defmodule ITKQueue.Consumer do
   end
 
   @doc false
-  def handle_info({:DOWN, _ref, :process, _pid, _error}, %{subscription: subscription}) do
-    # connection died, resubscribe
+  def handle_info({:DOWN, _ref, :process, _pid, _error}, %{
+        subscription:
+          subscription = %Subscription{queue_name: queue_name, routing_key: routing_key}
+      }) do
+    # connection died
+    Logger.info(
+      "Connection for subscription to #{queue_name} (#{routing_key}) closed",
+      queue_name: queue_name,
+      routing_key: routing_key
+    )
+
+    # wait for a connection to become available
+    Process.sleep(5000)
+
+    # resubscribe
     {:ok, state} = subscribe(subscription)
     {:noreply, state}
   end

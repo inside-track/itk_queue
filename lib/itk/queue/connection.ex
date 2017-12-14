@@ -1,6 +1,8 @@
+require Logger
+
 defmodule ITKQueue.Connection do
   @moduledoc """
-  Manages connections to AMQP.
+  Manages a connection to AMQP.
   """
 
   @doc false
@@ -10,40 +12,47 @@ defmodule ITKQueue.Connection do
 
   @doc false
   def init(opts) do
+    Logger.info("Establishing AMQP connection")
     Process.flag(:trap_exit, true)
-    {:ok, %{url: Keyword.get(opts, :amqp_url)}}
+    connection = connect(Keyword.get(opts, :amqp_url))
+    {:ok, connection}
   end
 
   @doc false
-  def handle_call(:connection, _from, state = %{url: url}) do
-    connection = state[:connection] || do_connect(url)
-    {:reply, connection, state |> Map.put(:connection, connection)}
+  def handle_call(:connection, _from, connection) do
+    {:reply, connection, connection}
   end
 
   @doc false
-  def handle_info({:DOWN, _ref, :process, _pid, _reason}, state) do
-    {:noreply, state |> Map.delete(:connection)}
+  def handle_info({:EXIT, _pid, _reason}, state) do
+    {:stop, :normal, state}
   end
 
-  @spec do_connect(url :: String.t()) :: AMQP.Connection.t()
-  defp do_connect(url) do
-    case AMQP.Connection.open(url) do
-      {:ok, connection} ->
-        Process.monitor(connection.pid)
-        connection
+  defp connect(url) do
+    url
+    |> AMQP.Connection.open()
+    |> handle_connection_result(url)
+  end
 
-      {:error, _} ->
-        Process.sleep(1000)
-        do_connect(url)
+  defp handle_connection_result({:ok, connection}, _url) do
+    Process.link(connection.pid)
+    connection
+  end
+
+  defp handle_connection_result({:error, _}, url) do
+    Logger.info("AMQP connection failed, retrying")
+    Process.sleep(1000)
+    connect(url)
+  end
+
+  def terminate(_reason, connection) do
+    Logger.info("Terminating AMQP connection")
+
+    if Process.alive?(connection.pid) do
+      Logger.info("Closing AMQP connection")
+      AMQP.Connection.close(connection)
     end
-  end
 
-  def terminate(_reason, %{connection: connection}) do
-    AMQP.Connection.close(connection)
-    :normal
-  end
-
-  def terminate(_reason, _state) do
     :normal
   end
 end
