@@ -40,31 +40,34 @@ defmodule ITKQueue.Publisher do
           stacktrace :: any
         ) :: no_return
   def publish(routing_key, message, headers, stacktrace) when is_bitstring(routing_key) do
-    if Mix.env() == :test && !running_library_tests?() do
-      send(self(), [:publish, routing_key, message])
-      :ok
+    if testing?() do
+      fake_publish(routing_key, message)
     else
-      Task.async(fn ->
-        start = System.monotonic_time()
-
-        {ref, connection} = ConnectionPool.checkout()
-        wait_stop = System.monotonic_time()
+      try do
+        {wait_diff, {ref, connection}} = time(fn -> ConnectionPool.checkout() end)
 
         try do
-          publish_message(connection, routing_key, message, headers, stacktrace)
+          {diff, _} =
+            time(fn -> publish_message(connection, routing_key, message, headers, stacktrace) end)
+
+          Logger.info(
+            "Published `#{routing_key}` in #{diff} (waited #{wait_diff})",
+            routing_key: routing_key
+          )
         after
           ConnectionPool.checkin(ref)
         end
+      catch
+        :exit, _reason ->
+          Logger.info(
+            "Failed to publish - sending to fallback.",
+            routing_key: routing_key
+          )
 
-        stop = System.monotonic_time()
-        wait_diff = diff_times(start, wait_stop)
-        diff = diff_times(wait_stop, stop)
+          Fallback.publish(routing_key, message)
+      end
 
-        Logger.info(
-          "Published `#{routing_key}` in #{diff} (waited #{wait_diff})",
-          routing_key: routing_key
-        )
-      end)
+      :ok
     end
   end
 
@@ -89,18 +92,32 @@ defmodule ITKQueue.Publisher do
         ) :: no_return
   def publish(connection = %AMQP.Connection{}, routing_key, message, headers, stacktrace)
       when is_bitstring(routing_key) do
-    if Mix.env() == :test && !running_library_tests?() do
-      send(self(), [:publish, routing_key, message])
-      :ok
+    if testing?() do
+      fake_publish(routing_key, message)
     else
-      start = System.monotonic_time()
-
-      publish_message(connection, routing_key, message, headers, stacktrace)
-
-      stop = System.monotonic_time()
-      diff = diff_times(start, stop)
+      {diff, _} =
+        time(fn -> publish_message(connection, routing_key, message, headers, stacktrace) end)
 
       Logger.info("Published `#{routing_key}` in #{diff}", routing_key: routing_key)
+    end
+
+    :ok
+  end
+
+  @spec publish_async(
+          routing_key :: String.t(),
+          message :: map,
+          headers :: Keyword.t(),
+          stacktrace :: any
+        ) :: no_return
+  def publish_async(routing_key, message, headers, stacktrace) when is_bitstring(routing_key) do
+    if testing?() do
+      fake_publish(routing_key, message)
+      :ok
+    else
+      Task.async(fn ->
+        publish(routing_key, message, headers, stacktrace)
+      end)
     end
   end
 
@@ -199,18 +216,19 @@ defmodule ITKQueue.Publisher do
     Application.get_env(:itk_queue, :amqp_exchange)
   end
 
-  defp diff_times(start, stop) do
-    diff = stop - start
-
-    diff
-    |> System.convert_time_unit(:native, :micro_seconds)
-    |> format_diff
+  defp time(action) do
+    {time, result} = :timer.tc(action)
+    {format_diff(time), result}
   end
 
   defp format_diff(diff) when diff > 1000, do: [diff |> div(1000) |> Integer.to_string(), "ms"]
   defp format_diff(diff), do: [Integer.to_string(diff), "µs"]
 
-  defp running_library_tests? do
-    Application.get_env(:itk_queue, :running_library_tests, false)
+  defp testing? do
+    Mix.env() == :test && !Application.get_env(:itk_queue, :running_library_tests, false)
+  end
+
+  defp fake_publish(routing_key, message) do
+    send(self(), [:publish, routing_key, message])
   end
 end

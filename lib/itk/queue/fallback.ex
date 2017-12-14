@@ -15,7 +15,7 @@ defmodule ITKQueue.Fallback do
       HTTPoison.post(
         endpoint,
         {:form, [routing_key: routing_key, content: payload]},
-        [{"Content-Type", "application/x-www-form-urlencoded"}],
+        [],
         publish_options()
       )
   end
