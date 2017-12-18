@@ -41,7 +41,7 @@ defmodule ITKQueue.Consumer do
         {:basic_deliver, payload, meta},
         state = %{channel: channel, subscription: subscription}
       ) do
-    Task.start(fn -> consume(channel, meta, payload, subscription) end)
+    consume(channel, meta, payload, subscription)
     {:noreply, state}
   end
 
