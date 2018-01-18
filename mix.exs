@@ -32,7 +32,7 @@ defmodule ITKQueue.Mixfile do
     [
       {:poison, "~> 3.0"},
       {:amqp, "~> 0.2"},
-      {:httpoison, "~> 0.9.2"},
+      {:httpoison, "~> 1.0"},
       {:uuid, "~> 1.1"},
       {:poolboy, "~> 1.5"},
       {:ex_doc, ">= 0.0.0", only: :dev},
