@@ -8,7 +8,7 @@ defmodule ITKQueue.Retry do
   the original routing key.
   """
 
-  alias ITKQueue.{Subscription, Publisher}
+  alias ITKQueue.{Subscription, Publisher, Headers}
 
   @doc """
   Retry the given message after a delay.
@@ -49,7 +49,7 @@ defmodule ITKQueue.Retry do
   end
 
   def count(headers) do
-    ITKQueue.Headers.get(headers, "retry_count", 0)
+    Headers.get(headers, "retry_count", 0)
   end
 
   defp exchange do
