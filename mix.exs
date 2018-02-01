@@ -36,7 +36,8 @@ defmodule ITKQueue.Mixfile do
       {:uuid, "~> 1.1"},
       {:poolboy, "~> 1.5"},
       {:ex_doc, ">= 0.0.0", only: :dev},
-      {:credo, git: "https://github.com/rrrene/credo.git", only: [:dev, :test]}
+      {:credo, git: "https://github.com/rrrene/credo.git", only: [:dev, :test]},
+      {:dialyxir, "~> 0.5", only: :dev, runtime: false}
     ]
   end
 
