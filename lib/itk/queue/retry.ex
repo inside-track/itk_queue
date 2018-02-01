@@ -19,8 +19,8 @@ defmodule ITKQueue.Retry do
   @spec delay(
           channel :: AMQP.Channel.t(),
           subscription :: Subscription.t(),
-          message :: Map.t(),
-          meta :: Map.t()
+          message :: map(),
+          meta :: map()
         ) :: no_return
   def delay(channel, %Subscription{routing_key: routing_key}, message, %{headers: headers})
       when is_map(message) do

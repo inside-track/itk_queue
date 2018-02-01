@@ -76,7 +76,7 @@ defmodule ITKQueue do
       iex> ITKQueue.publish("data.sync", %{type: "user", data: %{name: "Test User"}})
 
   """
-  @spec publish(routing_key :: String.t(), message :: Map.t()) :: :ok
+  @spec publish(routing_key :: String.t(), message :: map()) :: :ok
   def publish(routing_key, message) do
     stacktrace = Process.info(self(), :current_stacktrace)
     Publisher.publish(routing_key, message, [], elem(stacktrace, 1))

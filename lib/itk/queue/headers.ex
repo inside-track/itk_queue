@@ -6,7 +6,7 @@ defmodule ITKQueue.Headers do
   @doc """
   Gets the value from the headers for the given key.
   """
-  @spec get(headers :: List.t() | Map.t(), key :: String.t()) :: String.t()
+  @spec get(headers :: list() | map(), key :: String.t()) :: String.t()
   def get(headers, key, default \\ nil) do
     headers
     |> headers_to_map
