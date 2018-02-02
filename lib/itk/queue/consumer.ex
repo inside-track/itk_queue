@@ -9,7 +9,7 @@ defmodule ITKQueue.Consumer do
 
   use GenServer
 
-  alias ITKQueue.{ConnectionPool, Channel, Subscription, Retry}
+  alias ITKQueue.{ConnectionPool, Channel, Headers, Subscription, Retry, DefaultErrorHandler}
 
   @doc false
   def start_link(subscription = %Subscription{}) do
@@ -92,7 +92,7 @@ defmodule ITKQueue.Consumer do
          subscription = %Subscription{queue_name: queue_name, routing_key: routing_key}
        ) do
     message = payload |> parse_payload |> set_message_uuid
-    retry_count = ITKQueue.Headers.get(headers, "retry_count")
+    retry_count = Headers.get(headers, "retry_count")
 
     if retry_count do
       Logger.info(
@@ -127,8 +127,8 @@ defmodule ITKQueue.Consumer do
 
   defp parse_payload(payload) do
     case use_atom_keys?() do
-      true -> Poison.Parser.parse!(payload, keys: :atoms)
-      _ -> Poison.Parser.parse!(payload)
+      true -> Poison.decode!(payload, keys: :atoms)
+      _ -> Poison.decode!(payload)
     end
   end
 
@@ -260,7 +260,7 @@ defmodule ITKQueue.Consumer do
   end
 
   defp error_handler do
-    Application.get_env(:itk_queue, :error_handler, &ITKQueue.DefaultErrorHandler.handle/4)
+    Application.get_env(:itk_queue, :error_handler, &DefaultErrorHandler.handle/4)
   end
 
   defp max_retries do
