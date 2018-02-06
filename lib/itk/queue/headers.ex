@@ -3,6 +3,8 @@ defmodule ITKQueue.Headers do
   For interacting with headers from queue messages.
   """
 
+  @type t :: list({String.t(), atom(), any()})
+
   @doc """
   Gets the value from the headers for the given key.
   """
