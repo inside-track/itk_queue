@@ -234,8 +234,8 @@ defmodule ITKQueue.Consumer do
       routing_key: routing_key
     )
 
-    Retry.delay(channel, subscription, message, meta)
     AMQP.Basic.ack(channel, tag)
+    Retry.delay(channel, subscription, message, meta)
   end
 
   defp reject(

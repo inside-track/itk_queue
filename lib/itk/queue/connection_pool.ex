@@ -18,6 +18,7 @@ defmodule ITKQueue.ConnectionPool do
   end
 
   @doc false
+  @spec init(:ok) :: no_return
   def init(:ok) do
     pool_opts = [
       name: {:local, @pool_name},

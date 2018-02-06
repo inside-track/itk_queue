@@ -5,6 +5,8 @@ defmodule ITKQueue.Publisher do
 
   alias ITKQueue.{ConnectionPool, Channel, Fallback}
 
+  @type amqp_headers :: list({String.t(), atom(), any()})
+
   @doc """
   Publishes a message to the given routing key.
 
@@ -20,7 +22,7 @@ defmodule ITKQueue.Publisher do
     publish(routing_key, message, [])
   end
 
-  @spec publish(routing_key :: String.t(), message :: map, headers :: Keyword.t()) :: no_return
+  @spec publish(routing_key :: String.t(), message :: map, headers :: amqp_headers) :: no_return
   def publish(routing_key, message, headers) when is_bitstring(routing_key) do
     stacktrace = Process.info(self(), :current_stacktrace)
     publish(routing_key, message, headers, elem(stacktrace, 1))
@@ -36,7 +38,7 @@ defmodule ITKQueue.Publisher do
   @spec publish(
           routing_key :: String.t(),
           message :: map,
-          headers :: Keyword.t(),
+          headers :: amqp_headers,
           stacktrace :: any
         ) :: no_return
   def publish(routing_key, message, headers, stacktrace) when is_bitstring(routing_key) do
@@ -75,7 +77,7 @@ defmodule ITKQueue.Publisher do
           connection :: AMQP.Connection.t(),
           routing_key :: String.t(),
           message :: map,
-          headers :: Keyword.t()
+          headers :: amqp_headers
         ) :: no_return
   def publish(connection = %AMQP.Connection{}, routing_key, message, headers)
       when is_bitstring(routing_key) do
@@ -87,7 +89,7 @@ defmodule ITKQueue.Publisher do
           connection :: AMQP.Connection.t(),
           routing_key :: String.t(),
           message :: map,
-          headers :: Keyword.t(),
+          headers :: amqp_headers,
           stacktrace :: any
         ) :: no_return
   def publish(connection = %AMQP.Connection{}, routing_key, message, headers, stacktrace)
@@ -107,7 +109,7 @@ defmodule ITKQueue.Publisher do
   @spec publish_async(
           routing_key :: String.t(),
           message :: map,
-          headers :: Keyword.t(),
+          headers :: amqp_headers,
           stacktrace :: any
         ) :: no_return
   def publish_async(routing_key, message, headers, stacktrace) when is_bitstring(routing_key) do

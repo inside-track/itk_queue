@@ -46,13 +46,13 @@ defmodule ITKQueue do
       iex> ITKQueue.subscribe("students-data-sync", "data.sync", fn(message) -> IO.puts(inspect(message)) end)
 
   """
-  @spec subscribe(queue_name :: String.t(), routing_key :: String.t(), handler :: fun) ::
+  @spec subscribe(queue_name :: String.t(), routing_key :: String.t(), handler :: (any() -> any())) ::
           {:ok, pid}
   def subscribe(queue_name, routing_key, handler) when is_function(handler, 1) do
     subscribe(queue_name, routing_key, fn message, _headers -> handler.(message) end)
   end
 
-  @spec subscribe(queue_name :: String.t(), routing_key :: String.t(), handler :: fun) ::
+  @spec subscribe(queue_name :: String.t(), routing_key :: String.t(), handler :: (any(), any() -> any())) ::
           {:ok, pid}
   def subscribe(queue_name, routing_key, handler) when is_function(handler, 2) do
     if Mix.env() == :test && !running_library_tests?() do
