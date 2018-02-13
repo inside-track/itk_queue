@@ -3,10 +3,12 @@ defmodule ITKQueue.Headers do
   For interacting with headers from queue messages.
   """
 
+  @type t :: list({String.t(), atom(), any()})
+
   @doc """
   Gets the value from the headers for the given key.
   """
-  @spec get(headers :: List.t() | Map.t(), key :: String.t()) :: String.t()
+  @spec get(headers :: list() | map(), key :: String.t()) :: any()
   def get(headers, key, default \\ nil) do
     headers
     |> headers_to_map

@@ -19,8 +19,8 @@ defmodule ITKQueue.Retry do
   @spec delay(
           channel :: AMQP.Channel.t(),
           subscription :: Subscription.t(),
-          message :: Map.t(),
-          meta :: Map.t()
+          message :: ITKQueue.message(),
+          meta :: ITKQueue.metadata()
         ) :: no_return
   def delay(channel, %Subscription{routing_key: routing_key}, message, %{headers: headers})
       when is_map(message) do
@@ -48,14 +48,17 @@ defmodule ITKQueue.Retry do
     Publisher.publish(queue_name, message, headers)
   end
 
+  @spec count(Headers.t()) :: non_neg_integer
   def count(headers) do
     Headers.get(headers, "retry_count", 0)
   end
 
+  @spec exchange :: String.t()
   defp exchange do
     Application.get_env(:itk_queue, :amqp_exchange)
   end
 
+  @spec expiration_time(non_neg_integer) :: non_neg_integer
   defp expiration_time(retry_count) when retry_count > 10, do: 10_000
   defp expiration_time(retry_count), do: 1_000 * retry_count
 end

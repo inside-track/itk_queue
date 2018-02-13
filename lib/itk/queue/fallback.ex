@@ -1,7 +1,7 @@
 defmodule ITKQueue.Fallback do
   @moduledoc false
 
-  @spec publish(routing_key :: String.t(), message :: Map.t()) :: no_return
+  @spec publish(routing_key :: String.t(), message :: map()) :: no_return
   def publish(routing_key, message) do
     do_publish(endpoint(), routing_key, message)
   end
