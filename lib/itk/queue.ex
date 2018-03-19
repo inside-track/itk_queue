@@ -4,7 +4,7 @@ defmodule ITKQueue do
   """
   use Application
 
-  alias ITKQueue.{Publisher, ConsumerSupervisor, Subscription}
+  alias ITKQueue.{Channel, ConnectionPool, ConsumerSupervisor, Publisher, Subscription}
 
   @type message :: %{String.t() => any}
   @type metadata :: %{atom => any}
@@ -85,13 +85,47 @@ defmodule ITKQueue do
       iex> ITKQueue.publish("data.sync", %{type: "user", data: %{name: "Test User"}})
 
   """
-  @spec publish(routing_key :: String.t(), message :: map()) :: :ok
-  def publish(routing_key, message) do
+  @spec publish(routing_key :: String.t(), message :: map(), options :: Keyword.t()) :: :ok
+  def publish(routing_key, message, options \\ []) do
     stacktrace = Process.info(self(), :current_stacktrace)
-    Publisher.publish(routing_key, message, [], elem(stacktrace, 1))
+    Publisher.publish(routing_key, message, [], elem(stacktrace, 1), options)
   end
 
-  defp running_library_tests? do
+  @doc """
+  Declares a queue.
+  """
+  @spec declare_queue(queue_name :: String.t(), options :: Keyword.t()) :: :ok | no_return
+  def declare_queue(queue_name, options \\ []) do
+    unless testing?() do
+      ConnectionPool.with_channel(fn channel ->
+        Channel.declare_queue(channel, queue_name, options)
+      end)
+    end
+
+    :ok
+  end
+
+  @doc """
+  Deletes a queue.
+  """
+  @spec delete_queue(queue_name :: String.t()) :: :ok | no_return
+  def delete_queue(queue_name) do
+    unless testing?() do
+      ConnectionPool.with_channel(fn channel ->
+        Channel.delete_queue(channel, queue_name)
+      end)
+    end
+
+    :ok
+  end
+
+  @doc false
+  def testing? do
+    Mix.env() == :test && !running_library_tests?()
+  end
+
+  @doc false
+  def running_library_tests? do
     Application.get_env(:itk_queue, :running_library_tests, false)
   end
 end

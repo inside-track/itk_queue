@@ -45,7 +45,7 @@ defmodule ITKQueue.Retry do
       )
 
     :ok = AMQP.Queue.bind(channel, queue_name, exchange(), routing_key: queue_name)
-    Publisher.publish(queue_name, message, headers)
+    Publisher.publish(queue_name, message, headers, [])
   end
 
   @spec count(Headers.t()) :: non_neg_integer
