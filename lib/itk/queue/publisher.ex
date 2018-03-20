@@ -15,19 +15,19 @@ defmodule ITKQueue.Publisher do
   checking out a single connection to use for all of your publishing will
   be more efficient.
   """
-  @spec publish(routing_key :: String.t(), message :: map, options :: Keyword.t()) :: no_return
+  @spec publish(routing_key :: String.t(), message :: map, options :: Keyword.t()) :: :ok
   def publish(routing_key, message, options) when is_bitstring(routing_key) do
     publish(routing_key, message, [], options)
   end
 
-  @spec publish(routing_key :: String.t(), message :: map, headers :: Headers.t(), options :: Keyword.t()) :: no_return
+  @spec publish(routing_key :: String.t(), message :: map, headers :: Headers.t(), options :: Keyword.t()) :: :ok
   def publish(routing_key, message, headers, options) when is_bitstring(routing_key) do
     stacktrace = Process.info(self(), :current_stacktrace)
     publish(routing_key, message, headers, elem(stacktrace, 1), options)
   end
 
   @spec publish(connection :: AMQP.Connection.t(), routing_key :: String.t(), message :: map, options :: Keyword.t()) ::
-          no_return
+          :ok
   def publish(connection = %AMQP.Connection{}, routing_key, message, options)
       when is_bitstring(routing_key) do
     publish(connection, routing_key, message, [], options)
@@ -39,7 +39,7 @@ defmodule ITKQueue.Publisher do
           headers :: Headers.t(),
           stacktrace :: any,
           options :: Keyword.t()
-        ) :: no_return
+        ) :: :ok
   def publish(routing_key, message, headers, stacktrace, options) when is_bitstring(routing_key) do
     if testing?() do
       fake_publish(routing_key, message)
@@ -78,7 +78,7 @@ defmodule ITKQueue.Publisher do
           message :: map,
           headers :: Headers.t(),
           options :: Keyword.t()
-        ) :: no_return
+        ) :: :ok
   def publish(connection = %AMQP.Connection{}, routing_key, message, headers, options)
       when is_bitstring(routing_key) do
     stacktrace = Process.info(self(), :current_stacktrace)
@@ -92,7 +92,7 @@ defmodule ITKQueue.Publisher do
           headers :: Headers.t(),
           stacktrace :: any,
           options :: Keyword.t()
-        ) :: no_return
+        ) :: :ok
   def publish(connection = %AMQP.Connection{}, routing_key, message, headers, stacktrace, options)
       when is_bitstring(routing_key) do
     if testing?() do
@@ -125,6 +125,7 @@ defmodule ITKQueue.Publisher do
     end
   end
 
+  @spec publish_message(connection :: AMQP.Connection.t(), routing_key :: String.t(), message :: map, headers :: Headers.t(), stacktrace :: any, options :: Keyword.t()) :: :ok
   defp publish_message(connection, routing_key, message, headers, stacktrace, options) do
     publish_options =
       options
@@ -241,5 +242,6 @@ defmodule ITKQueue.Publisher do
 
   defp fake_publish(routing_key, message) do
     send(self(), [:publish, routing_key, message])
+    :ok
   end
 end

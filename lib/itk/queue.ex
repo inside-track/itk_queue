@@ -89,6 +89,7 @@ defmodule ITKQueue do
   def publish(routing_key, message, options \\ []) do
     stacktrace = Process.info(self(), :current_stacktrace)
     Publisher.publish(routing_key, message, [], elem(stacktrace, 1), options)
+    :ok
   end
 
   @doc """
