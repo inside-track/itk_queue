@@ -8,7 +8,7 @@ defmodule ITKQueue.ConnectionPool do
   """
   use Supervisor
 
-  alias ITKQueue.Connection
+  alias ITKQueue.{Channel, Connection}
 
   @pool_name :amqp_pool
 
@@ -33,6 +33,26 @@ defmodule ITKQueue.ConnectionPool do
 
     supervise(children, strategy: :one_for_one, name: __MODULE__)
   end
+
+  @doc """
+  Provides a new channel from a connection from the connection pool.
+
+  This channel will be closed and connection will automatically be
+  returned to the pool when the action is complete.
+
+  Example:
+    ITKQueue.ConnectionPool.with_channel(fn(channel) ->
+      # ... do something with the channel
+    end)
+  """
+  def with_channel(action) do
+    with_connection(fn connection ->
+      channel = Channel.open(connection)
+      action.(channel)
+      Channel.close(channel)
+    end)
+  end
+
 
   @doc """
   Provides a connection from the connection pool to perform an action.
