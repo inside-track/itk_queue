@@ -2,13 +2,13 @@ defmodule ITKQueue.Mixfile do
   use Mix.Project
 
   @project_url "https://github.com/inside-track/itk_queue"
-  @version "0.7.0"
+  @version "0.8.0"
 
   def project do
     [
       app: :itk_queue,
       version: @version,
-      elixir: "~> 1.5",
+      elixir: "~> 1.6",
       description:
         "Provides convenience methods for subscribing to queues and publishing messages.",
       source_url: @project_url,
