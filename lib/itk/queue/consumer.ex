@@ -172,6 +172,9 @@ defmodule ITKQueue.Consumer do
       {:retry, reason} ->
         retry_or_die(message, channel, meta, subscription, reason)
 
+      {:reject, reason} ->
+        reject(message, channel, meta, subscription, reason)
+
       _ ->
         AMQP.Basic.ack(channel, tag)
 
@@ -191,7 +194,7 @@ defmodule ITKQueue.Consumer do
          subscription = %Subscription{},
          reason
        )
-       when is_bitstring(reason) do
+       when is_binary(reason) do
     if should_retry?(headers) do
       retry(message, channel, meta, subscription, reason)
     else
@@ -244,7 +247,8 @@ defmodule ITKQueue.Consumer do
          %{delivery_tag: tag},
          %Subscription{queue_name: queue_name, routing_key: routing_key},
          reason
-       ) do
+       )
+       when is_binary(reason) do
     Logger.info(
       "Rejecting - #{reason}",
       message_id: message_uuid(message),
@@ -253,6 +257,11 @@ defmodule ITKQueue.Consumer do
     )
 
     AMQP.Basic.reject(channel, tag, requeue: false)
+  end
+
+  defp reject(message, channel, meta, subscription = %Subscription{}, error) do
+    reason = Exception.message(error)
+    reject(message, channel, meta, subscription, reason)
   end
 
   defp use_atom_keys? do

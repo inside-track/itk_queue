@@ -74,6 +74,8 @@ a message is received. The message will be the body of the message parsed as JSO
 
 If the handler function raises an exception or returns `{:retry, some_message}`, the message will be moved to a temporary queue and retried after a delay.
 
+If the handler function returns `{:reject, some_message}`, the message will be rejected without being retried.
+
 ```elixir
 ITKQueue.subscribe("my-queue", "routing.key", fn(message) -> IO.puts inspect message end)
 ```
