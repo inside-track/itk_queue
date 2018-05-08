@@ -29,7 +29,7 @@ defmodule ITKQueue.Consumer do
 
   @doc false
   def handle_info({:basic_cancel, _}, state) do
-    {:stop, :normal, state}
+    {:noreply, state}
   end
 
   @doc false
