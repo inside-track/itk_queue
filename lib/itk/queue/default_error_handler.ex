@@ -17,7 +17,7 @@ defmodule ITKQueue.DefaultErrorHandler do
   def handle(queue_name, routing_key, payload, e) do
     Logger.error("An error occurred in #{queue_name} handler (#{routing_key}):")
     Logger.error("Message:")
-    Logger.error(inspect(payload))
+    Logger.error(inspect(payload, limit: :infinity, printable_limit: :infinity))
     Logger.error(Exception.format(:error, e))
   end
 end
