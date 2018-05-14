@@ -18,7 +18,6 @@ defmodule ITKQueue.Consumer do
 
   @doc false
   def init(subscription) do
-    Process.flag(:trap_exit, true)
     subscribe(subscription)
   end
 
@@ -66,11 +65,6 @@ defmodule ITKQueue.Consumer do
     {:noreply, state}
   end
 
-  @doc false
-  def handle_info({:EXIT, _pid, _reason}, state) do
-    {:stop, :normal, state}
-  end
-
   defp subscribe(subscription = %Subscription{queue_name: queue_name, routing_key: routing_key}) do
     Logger.info(
       "Subscribing to #{queue_name} (#{routing_key})",
@@ -79,22 +73,15 @@ defmodule ITKQueue.Consumer do
     )
 
     ConnectionPool.with_connection(fn connection ->
-      connection_monitor = Process.monitor(connection.pid)
+      Process.monitor(connection.pid)
 
       channel =
         connection
         |> Channel.open()
         |> Channel.bind(queue_name, routing_key)
 
-      {:ok, consumer_tag} = AMQP.Basic.consume(channel, queue_name, self())
-
-      {:ok,
-       %{
-         channel: channel,
-         subscription: subscription,
-         connection_monitor: connection_monitor,
-         consumer_tag: consumer_tag
-       }}
+      {:ok, _} = AMQP.Basic.consume(channel, queue_name, self())
+      {:ok, %{channel: channel, subscription: subscription}}
     end)
   end
 
@@ -287,19 +274,5 @@ defmodule ITKQueue.Consumer do
 
   defp max_retries do
     Application.get_env(:itk_queue, :max_retries, -1)
-  end
-
-  def terminate(reason, %{
-        channel: channel,
-        connection_monitor: connection_monitor,
-        consumer_tag: consumer_tag
-      }) do
-    Logger.info("Terminating consumer (#{reason})")
-
-    Process.demonitor(connection_monitor)
-    AMQP.Basic.cancel(channel, consumer_tag)
-    Channel.close(channel)
-
-    :normal
   end
 end
