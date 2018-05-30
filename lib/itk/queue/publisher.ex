@@ -20,14 +20,23 @@ defmodule ITKQueue.Publisher do
     publish(routing_key, message, [], options)
   end
 
-  @spec publish(routing_key :: String.t(), message :: map, headers :: Headers.t(), options :: Keyword.t()) :: :ok
+  @spec publish(
+          routing_key :: String.t(),
+          message :: map,
+          headers :: Headers.t(),
+          options :: Keyword.t()
+        ) :: :ok
   def publish(routing_key, message, headers, options) when is_bitstring(routing_key) do
     stacktrace = Process.info(self(), :current_stacktrace)
     publish(routing_key, message, headers, elem(stacktrace, 1), options)
   end
 
-  @spec publish(connection :: AMQP.Connection.t(), routing_key :: String.t(), message :: map, options :: Keyword.t()) ::
-          :ok
+  @spec publish(
+          connection :: AMQP.Connection.t(),
+          routing_key :: String.t(),
+          message :: map,
+          options :: Keyword.t()
+        ) :: :ok
   def publish(connection = %AMQP.Connection{}, routing_key, message, options)
       when is_bitstring(routing_key) do
     publish(connection, routing_key, message, [], options)
@@ -40,7 +49,8 @@ defmodule ITKQueue.Publisher do
           stacktrace :: any,
           options :: Keyword.t()
         ) :: :ok
-  def publish(routing_key, message, headers, stacktrace, options) when is_bitstring(routing_key) do
+  def publish(routing_key, message, headers, stacktrace, options)
+      when is_bitstring(routing_key) do
     if testing?() do
       fake_publish(routing_key, message)
     else
@@ -49,7 +59,9 @@ defmodule ITKQueue.Publisher do
 
         try do
           {diff, _} =
-            time(fn -> publish_message(connection, routing_key, message, headers, stacktrace, options) end)
+            time(fn ->
+              publish_message(connection, routing_key, message, headers, stacktrace, options)
+            end)
 
           Logger.info(
             "Published `#{routing_key}` in #{diff} (waited #{wait_diff})",
@@ -99,7 +111,9 @@ defmodule ITKQueue.Publisher do
       fake_publish(routing_key, message)
     else
       {diff, _} =
-        time(fn -> publish_message(connection, routing_key, message, headers, stacktrace, options) end)
+        time(fn ->
+          publish_message(connection, routing_key, message, headers, stacktrace, options)
+        end)
 
       Logger.info("Published `#{routing_key}` in #{diff}", routing_key: routing_key)
     end
@@ -114,7 +128,8 @@ defmodule ITKQueue.Publisher do
           stacktrace :: any,
           options :: Keyword.t()
         ) :: no_return
-  def publish_async(routing_key, message, headers, stacktrace, options) when is_bitstring(routing_key) do
+  def publish_async(routing_key, message, headers, stacktrace, options)
+      when is_bitstring(routing_key) do
     if testing?() do
       fake_publish(routing_key, message)
       :ok
@@ -125,7 +140,14 @@ defmodule ITKQueue.Publisher do
     end
   end
 
-  @spec publish_message(connection :: AMQP.Connection.t(), routing_key :: String.t(), message :: map, headers :: Headers.t(), stacktrace :: any, options :: Keyword.t()) :: :ok
+  @spec publish_message(
+          connection :: AMQP.Connection.t(),
+          routing_key :: String.t(),
+          message :: map,
+          headers :: Headers.t(),
+          stacktrace :: any,
+          options :: Keyword.t()
+        ) :: :ok
   defp publish_message(connection, routing_key, message, headers, stacktrace, options) do
     publish_options =
       options
