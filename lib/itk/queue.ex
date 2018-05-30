@@ -67,6 +67,11 @@ defmodule ITKQueue do
     if Mix.env() == :test && !running_library_tests?() do
       {:ok, :ok}
     else
+      handler =
+        Enum.reduce(middleware(), handler, fn module, fun ->
+          fn message, headers -> module.handle_message(message, headers, fun) end
+        end)
+
       subscription = %Subscription{
         queue_name: queue_name,
         routing_key: routing_key,
@@ -87,9 +92,14 @@ defmodule ITKQueue do
   """
   @spec publish(routing_key :: String.t(), message :: map(), options :: Keyword.t()) :: :ok
   def publish(routing_key, message, options \\ []) do
-    stacktrace = Process.info(self(), :current_stacktrace)
-    Publisher.publish(routing_key, message, [], elem(stacktrace, 1), options)
-    :ok
+    handler =
+      Enum.reduce(middleware(), &do_publish/3, fn module, fun ->
+        fn routing_key, message, options ->
+          module.publish(routing_key, message, options, fun)
+        end
+      end)
+
+    handler.(routing_key, message, options)
   end
 
   @doc """
@@ -128,5 +138,18 @@ defmodule ITKQueue do
   @doc false
   def running_library_tests? do
     Application.get_env(:itk_queue, :running_library_tests, false)
+  end
+
+  @doc false
+  def middleware do
+    :itk_queue
+    |> Application.get_env(:middleware, [])
+    |> Enum.reverse()
+  end
+
+  defp do_publish(routing_key, message, options) do
+    stacktrace = self() |> Process.info(:current_stacktrace) |> elem(1)
+    Publisher.publish(routing_key, message, [], stacktrace, options)
+    :ok
   end
 end
