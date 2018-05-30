@@ -53,7 +53,6 @@ defmodule ITKQueue.ConnectionPool do
     end)
   end
 
-
   @doc """
   Provides a connection from the connection pool to perform an action.
 
