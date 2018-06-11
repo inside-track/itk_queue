@@ -10,9 +10,13 @@ defmodule ITKQueue.Channel do
   """
   @spec open(connection :: AMQP.Connection.t()) :: AMQP.Channel.t()
   def open(connection) do
-    {:ok, channel} = AMQP.Channel.open(connection)
-    AMQP.Exchange.topic(channel, default_exchange())
-    channel
+    if testing?() do
+      %AMQP.Channel{}
+    else
+      {:ok, channel} = AMQP.Channel.open(connection)
+      AMQP.Exchange.topic(channel, default_exchange())
+      channel
+    end
   end
 
   @doc """
@@ -20,7 +24,11 @@ defmodule ITKQueue.Channel do
   """
   @spec close(channel :: AMQP.Channel.t()) :: :ok
   def close(channel) do
-    AMQP.Channel.close(channel)
+    if testing?() do
+      :ok
+    else
+      AMQP.Channel.close(channel)
+    end
   end
 
   @doc """
@@ -93,5 +101,10 @@ defmodule ITKQueue.Channel do
     |> Keyword.put_new(:arguments, [])
     |> Keyword.put_new(:auto_delete, false)
     |> Keyword.put_new(:durable, true)
+  end
+
+  @spec testing?() :: boolean
+  defp testing? do
+    Mix.env() == :test && !Application.get_env(:itk_queue, :running_library_tests, false)
   end
 end
