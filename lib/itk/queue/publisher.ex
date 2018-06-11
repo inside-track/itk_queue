@@ -21,18 +21,7 @@ defmodule ITKQueue.Publisher do
   end
 
   @spec publish(
-          routing_key :: String.t(),
-          message :: map,
-          headers :: Headers.t(),
-          options :: Keyword.t()
-        ) :: :ok
-  def publish(routing_key, message, headers, options) when is_bitstring(routing_key) do
-    stacktrace = Process.info(self(), :current_stacktrace)
-    publish(routing_key, message, headers, elem(stacktrace, 1), options)
-  end
-
-  @spec publish(
-          connection :: AMQP.Connection.t() | AMQP.Channel.t(),
+          AMQP.Connection.t() | AMQP.Channel.t(),
           routing_key :: String.t(),
           message :: map,
           options :: Keyword.t()
@@ -51,10 +40,9 @@ defmodule ITKQueue.Publisher do
           routing_key :: String.t(),
           message :: map,
           headers :: Headers.t(),
-          stacktrace :: any,
           options :: Keyword.t()
         ) :: :ok
-  def publish(routing_key, message, headers, stacktrace, options)
+  def publish(routing_key, message, headers, options)
       when is_bitstring(routing_key) do
     if testing?() do
       fake_publish(routing_key, message)
@@ -65,7 +53,7 @@ defmodule ITKQueue.Publisher do
         try do
           {diff, _} =
             time(fn ->
-              publish_message(connection, routing_key, message, headers, stacktrace, options)
+              publish_message(connection, routing_key, message, headers, options)
             end)
 
           Logger.info(
@@ -90,7 +78,7 @@ defmodule ITKQueue.Publisher do
   end
 
   @spec publish(
-          connection :: AMQP.Connection.t() | AMQP.Channel.t(),
+          AMQP.Connection.t() | AMQP.Channel.t(),
           routing_key :: String.t(),
           message :: map,
           headers :: Headers.t(),
@@ -98,32 +86,12 @@ defmodule ITKQueue.Publisher do
         ) :: :ok
   def publish(connection = %AMQP.Connection{}, routing_key, message, headers, options)
       when is_bitstring(routing_key) do
-    stacktrace = Process.info(self(), :current_stacktrace)
-    publish(connection, routing_key, message, headers, elem(stacktrace, 1), options)
-  end
-
-  def publish(channel = %AMQP.Channel{}, routing_key, message, headers, options)
-      when is_bitstring(routing_key) do
-    stacktrace = Process.info(self(), :current_stacktrace)
-    publish(channel, routing_key, message, headers, elem(stacktrace, 1), options)
-  end
-
-  @spec publish(
-          connection :: AMQP.Connection.t() | AMQP.Channel.t(),
-          routing_key :: String.t(),
-          message :: map,
-          headers :: Headers.t(),
-          stacktrace :: any,
-          options :: Keyword.t()
-        ) :: :ok
-  def publish(connection = %AMQP.Connection{}, routing_key, message, headers, stacktrace, options)
-      when is_bitstring(routing_key) do
     if testing?() do
       fake_publish(routing_key, message)
     else
       {diff, _} =
         time(fn ->
-          publish_message(connection, routing_key, message, headers, stacktrace, options)
+          publish_message(connection, routing_key, message, headers, options)
         end)
 
       Logger.info("Published `#{routing_key}` in #{diff}", routing_key: routing_key)
@@ -132,14 +100,14 @@ defmodule ITKQueue.Publisher do
     :ok
   end
 
-  def publish(channel = %AMQP.Channel{}, routing_key, message, headers, stacktrace, options)
+  def publish(channel = %AMQP.Channel{}, routing_key, message, headers, options)
       when is_bitstring(routing_key) do
     if testing?() do
       fake_publish(routing_key, message)
     else
       {diff, _} =
         time(fn ->
-          publish_message(channel, routing_key, message, headers, stacktrace, options)
+          publish_message(channel, routing_key, message, headers, options)
         end)
 
       Logger.info("Published `#{routing_key}` in #{diff}", routing_key: routing_key)
@@ -168,11 +136,10 @@ defmodule ITKQueue.Publisher do
   end
 
   @spec publish_message(
-          connection :: AMQP.Connection.t(),
+          AMQP.Connection.t() | AMQP.Channel.t(),
           routing_key :: String.t(),
           message :: map,
           headers :: Headers.t(),
-          stacktrace :: any,
           options :: Keyword.t()
         ) :: :ok
   defp publish_message(
@@ -180,11 +147,10 @@ defmodule ITKQueue.Publisher do
          routing_key,
          message,
          headers,
-         stacktrace,
          options
        ) do
     channel = Channel.open(connection)
-    publish_message(channel, routing_key, message, headers, stacktrace, options)
+    publish_message(channel, routing_key, message, headers, options)
     Channel.close(channel)
   end
 
@@ -193,16 +159,17 @@ defmodule ITKQueue.Publisher do
          routing_key,
          message,
          headers,
-         stacktrace,
          options
        ) do
     publish_options =
       options
+      |> Keyword.delete(:source)
+      |> Keyword.delete(:stacktrace)
       |> Keyword.put(:headers, headers)
       |> Keyword.put_new(:persistent, true)
 
     exchange = Keyword.get(options, :exchange, default_exchange())
-    message = set_message_metadata(message, routing_key, stacktrace)
+    message = set_message_metadata(message, routing_key, options)
     {:ok, payload} = Poison.encode(message)
 
     case AMQP.Basic.publish(
@@ -225,26 +192,26 @@ defmodule ITKQueue.Publisher do
     end
   end
 
-  defp set_message_metadata(message = %{"metadata" => metadata}, routing_key, stacktrace) do
+  defp set_message_metadata(message = %{"metadata" => metadata}, routing_key, options) do
     metadata =
       metadata
       |> Map.put("app", app_name(message))
       |> Map.put("routing_key", routing_key)
       |> Map.put("uuid", message_uuid(message))
-      |> Map.put("source", message_source(message, stacktrace))
+      |> Map.put("source", message_source(message, options))
       |> Map.put("hostname", hostname(message))
 
     Map.put(message, "metadata", metadata)
   end
 
-  defp set_message_metadata(message, routing_key, stacktrace) do
+  defp set_message_metadata(message, routing_key, options) do
     metadata =
       message
       |> Map.get(:metadata, %{})
       |> Map.put(:app, app_name(message))
       |> Map.put(:routing_key, routing_key)
       |> Map.put(:uuid, message_uuid(message))
-      |> Map.put(:source, message_source(message, stacktrace))
+      |> Map.put(:source, message_source(message, options))
       |> Map.put(:hostname, hostname(message))
 
     Map.put(message, :metadata, metadata)
@@ -264,11 +231,25 @@ defmodule ITKQueue.Publisher do
 
   defp message_uuid(_), do: UUID.uuid4()
 
-  defp message_source(%{"metadata" => %{"source" => source}}, _stacktrace), do: source
+  defp message_source(%{"metadata" => %{"source" => source}}, _options), do: source
 
-  defp message_source(%{metadata: %{source: source}}, _stacktrace), do: source
+  defp message_source(%{metadata: %{source: source}}, _options), do: source
 
-  defp message_source(_message, stacktrace) do
+  defp message_source(_message, options) do
+    case Keyword.get(options, :source) do
+      nil ->
+        options |> Keyword.get(:stacktrace) |> message_source_from_stacktrace()
+
+      source ->
+        source
+    end
+  end
+
+  defp message_source_from_stacktrace(nil) do
+    self() |> Process.info(:current_stacktrace) |> elem(1) |> message_source_from_stacktrace()
+  end
+
+  defp message_source_from_stacktrace(stacktrace) do
     stacktrace
     |> Exception.format_stacktrace()
     |> String.split("\n")
