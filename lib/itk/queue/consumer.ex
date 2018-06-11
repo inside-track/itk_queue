@@ -127,8 +127,8 @@ defmodule ITKQueue.Consumer do
 
   defp parse_payload(payload) do
     case use_atom_keys?() do
-      true -> Poison.decode!(payload, keys: :atoms)
-      _ -> Poison.decode!(payload)
+      true -> Jason.decode!(payload, keys: :atoms)
+      _ -> Jason.decode!(payload)
     end
   end
 
@@ -214,7 +214,7 @@ defmodule ITKQueue.Consumer do
     if should_retry?(headers) do
       retry(message, channel, meta, subscription, reason)
     else
-      error_handler().(queue_name, routing_key, Poison.encode!(message), error)
+      error_handler().(queue_name, routing_key, Jason.encode!(message), error)
       reject(message, channel, meta, subscription, reason)
     end
   end

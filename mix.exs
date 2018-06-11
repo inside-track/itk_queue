@@ -30,7 +30,7 @@ defmodule ITKQueue.Mixfile do
 
   defp deps do
     [
-      {:poison, "~> 3.0"},
+      {:jason, "~> 1.0"},
       {:amqp, "~> 0.2"},
       {:httpoison, "~> 1.0"},
       {:uuid, "~> 1.1"},

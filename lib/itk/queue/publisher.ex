@@ -170,7 +170,7 @@ defmodule ITKQueue.Publisher do
 
     exchange = Keyword.get(options, :exchange, default_exchange())
     message = set_message_metadata(message, routing_key, options)
-    {:ok, payload} = Poison.encode(message)
+    payload = Jason.encode!(message)
 
     case AMQP.Basic.publish(
            channel,

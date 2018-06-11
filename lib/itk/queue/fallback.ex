@@ -9,12 +9,10 @@ defmodule ITKQueue.Fallback do
   defp do_publish(false, _, _), do: nil
 
   defp do_publish(endpoint, routing_key, message) do
-    {:ok, payload} = Poison.encode(message)
-
     {:ok, %HTTPoison.Response{status_code: 201}} =
       HTTPoison.post(
         endpoint,
-        {:form, [routing_key: routing_key, content: payload]},
+        {:form, [routing_key: routing_key, content: Jason.encode!(message)]},
         [],
         publish_options()
       )
