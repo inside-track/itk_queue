@@ -66,8 +66,7 @@ defmodule ITKQueue.Consumer do
     {:noreply, state}
   end
 
-  def terminate(reason, %{channel: channel, consumer_tag: consumer_tag}) do
-    Logger.info("Terminating consumer (#{reason})")
+  def terminate(_reason, %{channel: channel, consumer_tag: consumer_tag}) do
     AMQP.Basic.cancel(channel, consumer_tag)
 
     # give the consumer a chance to finish processing its message
