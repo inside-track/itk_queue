@@ -66,6 +66,10 @@ defmodule ITKQueue.Consumer do
     {:noreply, state}
   end
 
+  def handle_info({:EXIT, _pid, :normal}, state) do
+    {:stop, :normal, state}
+  end
+
   def terminate(_reason, %{channel: channel, consumer_tag: consumer_tag}) do
     AMQP.Basic.cancel(channel, consumer_tag)
 
