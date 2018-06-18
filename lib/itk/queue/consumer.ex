@@ -18,7 +18,6 @@ defmodule ITKQueue.Consumer do
 
   @doc false
   def init(subscription) do
-    Process.flag(:trap_exit, true)
     subscribe(subscription)
   end
 
@@ -47,13 +46,13 @@ defmodule ITKQueue.Consumer do
   end
 
   @doc false
-  def handle_info({:DOWN, _ref, :process, _pid, error}, %{
+  def handle_info({:DOWN, _ref, :process, _pid, _error}, %{
         subscription:
           subscription = %Subscription{queue_name: queue_name, routing_key: routing_key}
       }) do
     # connection died
     Logger.info(
-      "Connection for subscription to #{queue_name} (#{routing_key}) closed (#{error})",
+      "Connection for subscription to #{queue_name} (#{routing_key}) closed",
       queue_name: queue_name,
       routing_key: routing_key
     )
@@ -64,16 +63,6 @@ defmodule ITKQueue.Consumer do
     # resubscribe
     {:ok, state} = subscribe(subscription)
     {:noreply, state}
-  end
-
-  def terminate(reason, %{channel: channel, consumer_tag: consumer_tag}) do
-    Logger.info("Terminating consumer (#{reason})")
-    AMQP.Basic.cancel(channel, consumer_tag)
-
-    # give the consumer a chance to finish processing its message
-    Process.sleep(2000)
-
-    :normal
   end
 
   defp subscribe(subscription = %Subscription{queue_name: queue_name, routing_key: routing_key}) do
@@ -91,8 +80,8 @@ defmodule ITKQueue.Consumer do
         |> Channel.open()
         |> Channel.bind(queue_name, routing_key)
 
-      {:ok, consumer_tag} = AMQP.Basic.consume(channel, queue_name, self())
-      {:ok, %{channel: channel, subscription: subscription, consumer_tag: consumer_tag}}
+      {:ok, _} = AMQP.Basic.consume(channel, queue_name, self())
+      {:ok, %{channel: channel, subscription: subscription}}
     end)
   end
 
