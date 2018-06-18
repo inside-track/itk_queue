@@ -45,8 +45,8 @@ defmodule ITKQueue.Connection do
     connect(url)
   end
 
-  def terminate(:shutdown, connection) do
-    Logger.info("Shutting down AMQP connection")
+  def terminate(reason, connection) do
+    Logger.info("Terminating AMQP connection (#{reason})")
     Process.unlink(connection.pid)
 
     if Process.alive?(connection.pid) do
