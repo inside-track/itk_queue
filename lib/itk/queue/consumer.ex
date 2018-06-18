@@ -70,12 +70,13 @@ defmodule ITKQueue.Consumer do
     {:stop, :normal, state}
   end
 
-  def terminate(_reason, %{channel: channel, consumer_tag: consumer_tag}) do
+  def handle_info({:EXIT, _pid, :shutdown}, state) do
+    {:stop, :shutdown, state}
+  end
+
+  def terminate(:shutdown, %{channel: channel, consumer_tag: consumer_tag}) do
+    Logger.info("Shutting down consumer")
     AMQP.Basic.cancel(channel, consumer_tag)
-
-    # give the consumer a chance to finish processing its message
-    Process.sleep(2000)
-
     :normal
   end
 

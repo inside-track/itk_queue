@@ -23,7 +23,7 @@ defmodule ITKQueueTest do
     ITKQueue.publish("test.queue1", %{test: "me"})
     assert_receive :ok, 5_000
 
-    Process.exit(subscription, :normal)
+    Process.exit(subscription, :shutdown)
   end
 
   test "retrying failed messages" do
@@ -44,7 +44,7 @@ defmodule ITKQueueTest do
     ITKQueue.publish("test.queue2", %{test: "me"})
     assert_receive :ok, 5_000
 
-    Process.exit(subscription, :normal)
+    Process.exit(subscription, :shutdown)
   end
 
   test "retrying failed messages without an exception" do
@@ -65,6 +65,6 @@ defmodule ITKQueueTest do
     ITKQueue.publish("test.queue2", %{test: "me"})
     assert_receive :ok, 5_000
 
-    Process.exit(subscription, :normal)
+    Process.exit(subscription, :shutdown)
   end
 end
