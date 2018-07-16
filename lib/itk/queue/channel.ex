@@ -98,9 +98,25 @@ defmodule ITKQueue.Channel do
 
   defp declare_options(options) do
     options
-    |> Keyword.put_new(:arguments, [])
+    |> with_declare_arguments
     |> Keyword.put_new(:auto_delete, false)
     |> Keyword.put_new(:durable, true)
+  end
+
+  defp with_declare_arguments(options) do
+    default_args = Application.get_env(:itk_queue, :queue_declare_arguments, [])
+
+    # Each argument is a tuple of three elements ({name, type, value})
+    Keyword.update(options, :arguments, [], fn arguments ->
+      list_keymerge(default_args, arguments, 0)
+    end)
+  end
+
+  @spec list_keymerge(list1 :: [tuple], list2 :: [tuple], pos :: non_neg_integer) :: [tuple]
+  defp list_keymerge(list1, list2, pos) do
+    Enum.reduce(list2, list1, fn term, acc ->
+      List.keystore(acc, elem(term, pos), pos, term)
+    end)
   end
 
   @spec testing?() :: boolean
