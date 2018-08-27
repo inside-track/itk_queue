@@ -13,9 +13,13 @@ defmodule ITKQueue do
   def start(_type, _args) do
     opts = [strategy: :one_for_one, name: ITKQueue.Supervisor]
 
-    Mix.env()
+    environment()
     |> children
     |> Supervisor.start_link(opts)
+  end
+
+  defp environment() do
+    Application.get_env(:itk_queue, :env)
   end
 
   defp children(:test) do
@@ -64,7 +68,7 @@ defmodule ITKQueue do
           handler :: (any(), any() -> any())
         ) :: {:ok, pid}
   def subscribe(queue_name, routing_key, handler) when is_function(handler, 2) do
-    if Mix.env() == :test && !running_library_tests?() do
+    if environment() == :test && !running_library_tests?() do
       {:ok, :ok}
     else
       handler =
@@ -132,7 +136,7 @@ defmodule ITKQueue do
 
   @doc false
   def testing? do
-    Mix.env() == :test && !running_library_tests?()
+    environment() == :test && !running_library_tests?()
   end
 
   @doc false

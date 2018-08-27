@@ -121,6 +121,7 @@ defmodule ITKQueue.Channel do
 
   @spec testing?() :: boolean
   defp testing? do
-    Mix.env() == :test && !Application.get_env(:itk_queue, :running_library_tests, false)
+    Application.get_env(:itk_queue, :env) == :test &&
+      !Application.get_env(:itk_queue, :running_library_tests, false)
   end
 end
