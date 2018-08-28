@@ -8,7 +8,7 @@ defmodule ITKQueue.Mixfile do
     [
       app: :itk_queue,
       version: @version,
-      elixir: "~> 1.7",
+      elixir: "~> 1.6",
       description:
         "Provides convenience methods for subscribing to queues and publishing messages.",
       source_url: @project_url,
