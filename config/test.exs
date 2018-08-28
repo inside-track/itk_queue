@@ -5,4 +5,5 @@ config :itk_queue,
   amqp_exchange: "test",
   fallback_endpoint: false,
   running_library_tests: true,
-  max_retries: 10
+  max_retries: 10,
+  env: Mix.env()

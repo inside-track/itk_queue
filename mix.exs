@@ -2,7 +2,7 @@ defmodule ITKQueue.Mixfile do
   use Mix.Project
 
   @project_url "https://github.com/inside-track/itk_queue"
-  @version "0.9.9"
+  @version "0.10.0"
 
   def project do
     [
@@ -43,7 +43,7 @@ defmodule ITKQueue.Mixfile do
 
   defp package do
     [
-      maintainers: ["Adam Vaughan", "Grant Austin", "Daniel Hedlund"],
+      maintainers: ["Adam Vaughan", "Grant Austin", "Jared Smith"],
       licenses: ["MIT"],
       links: %{
         "GitHub" => @project_url

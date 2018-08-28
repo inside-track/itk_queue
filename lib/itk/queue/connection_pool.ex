@@ -83,7 +83,7 @@ defmodule ITKQueue.ConnectionPool do
     ITKQueue.ConnectionPool.checkin(ref)
   """
   def checkout do
-    if Mix.env() == :test && !running_library_tests?() do
+    if Application.get_env(:itk_queue, :env) == :test && !running_library_tests?() do
       {self(), %AMQP.Connection{}}
     else
       pid = :poolboy.checkout(@pool_name)
@@ -96,7 +96,7 @@ defmodule ITKQueue.ConnectionPool do
   Return a connection to the pool.
   """
   def checkin(pid) do
-    unless Mix.env() == :test && !running_library_tests?() do
+    unless Application.get_env(:itk_queue, :env) == :test && !running_library_tests?() do
       :poolboy.checkin(@pool_name, pid)
     end
   end
