@@ -214,7 +214,7 @@ defmodule ITKQueue.Consumer do
     if should_retry?(headers) do
       retry(message, channel, meta, subscription, reason)
     else
-      error_handler().(queue_name, routing_key, Jason.encode!(message), error)
+      error_handler().handle(queue_name, routing_key, Jason.encode!(message), error)
       reject(message, channel, meta, subscription, reason)
     end
   end
@@ -269,7 +269,7 @@ defmodule ITKQueue.Consumer do
   end
 
   defp error_handler do
-    Application.get_env(:itk_queue, :error_handler, &DefaultErrorHandler.handle/4)
+    Application.get_env(:itk_queue, :error_handler, DefaultErrorHandler)
   end
 
   defp max_retries do
