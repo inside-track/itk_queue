@@ -1,6 +1,8 @@
 require Logger
 
 defmodule ITKQueue.DefaultErrorHandler do
+  alias ITKQueue.Behaviors.QueueErrorHandler
+
   @moduledoc """
   The default error handler.
   """
@@ -8,6 +10,8 @@ defmodule ITKQueue.DefaultErrorHandler do
   @doc """
   Handles an error that occurred while processing a queue message. Just logs information about the message.
   """
+  @behaviour QueueErrorHandler
+
   @spec handle(
           queue_name :: String.t(),
           routing_key :: String.t(),
