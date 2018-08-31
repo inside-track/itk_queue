@@ -33,7 +33,6 @@ defmodule ITKQueue.Mixfile do
       {:jason, "~> 1.0"},
       {:amqp, "~> 0.2"},
       {:httpoison, "~> 1.0"},
-      {:certifi, "2.4.1", override: true},
       {:uuid, "~> 1.1"},
       {:poolboy, "~> 1.5"},
       {:ex_doc, ">= 0.0.0", only: :dev},
