@@ -41,7 +41,7 @@ defmodule ITKQueue.Consumer do
         {:basic_deliver, payload, meta},
         state = %{channel: channel, subscription: subscription}
       ) do
-    consume(channel, meta, payload, subscription)
+    consume_async(channel, meta, payload, subscription)
     {:noreply, state}
   end
 
@@ -82,6 +82,12 @@ defmodule ITKQueue.Consumer do
 
       {:ok, _} = AMQP.Basic.consume(channel, queue_name, self())
       {:ok, %{channel: channel, subscription: subscription}}
+    end)
+  end
+
+  defp consume_async(channel, meta, payload, subscription) do
+    spawn(fn ->
+      consume(channel, meta, payload, subscription)
     end)
   end
 
