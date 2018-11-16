@@ -33,12 +33,10 @@ defmodule ITKQueue do
   defp children(_), do: children()
 
   defp children do
-    import Supervisor.Spec
-
     [
-      worker(ITKQueue.ConnectionPool, []),
-      supervisor(ITKQueue.ConsumerSupervisor, []),
-      worker(ITKQueue.Workers, [])
+      ITKQueue.ConnectionPool,
+      ITKQueue.ConsumerSupervisor,
+      ITKQueue.Workers
     ]
   end
 

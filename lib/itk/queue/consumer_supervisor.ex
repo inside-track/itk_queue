@@ -6,12 +6,12 @@ defmodule ITKQueue.ConsumerSupervisor do
   alias ITKQueue.{Consumer, Subscription}
 
   @doc false
-  def start_link() do
-    DynamicSupervisor.start_link(__MODULE__, :ok, name: __MODULE__)
+  def start_link(arg) do
+    DynamicSupervisor.start_link(__MODULE__, arg, name: __MODULE__)
   end
 
   @doc false
-  def init(:ok) do
+  def init(_arg) do
     DynamicSupervisor.init(strategy: :one_for_one)
   end
 
