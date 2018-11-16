@@ -9,7 +9,7 @@ defmodule ITKQueue.Consumer do
 
   use GenServer
 
-  alias ITKQueue.{ConnectionPool, Channel, Headers, Subscription, Retry, DefaultErrorHandler}
+  alias ITKQueue.{Channel, Headers, Subscription, Retry, DefaultErrorHandler}
 
   @doc false
   def start_link(subscription = %Subscription{}) do
@@ -45,26 +45,6 @@ defmodule ITKQueue.Consumer do
     {:noreply, state}
   end
 
-  @doc false
-  def handle_info({:DOWN, _ref, :process, _pid, _error}, %{
-        subscription:
-          subscription = %Subscription{queue_name: queue_name, routing_key: routing_key}
-      }) do
-    # connection died
-    Logger.info(
-      "Connection for subscription to #{queue_name} (#{routing_key}) closed",
-      queue_name: queue_name,
-      routing_key: routing_key
-    )
-
-    # wait for a connection to become available
-    Process.sleep(5000)
-
-    # resubscribe
-    {:ok, state} = subscribe(subscription)
-    {:noreply, state}
-  end
-
   defp subscribe(subscription = %Subscription{queue_name: queue_name, routing_key: routing_key}) do
     Logger.info(
       "Subscribing to #{queue_name} (#{routing_key})",
@@ -72,17 +52,15 @@ defmodule ITKQueue.Consumer do
       routing_key: routing_key
     )
 
-    ConnectionPool.with_connection(fn connection ->
-      Process.monitor(connection.pid)
+    connection = GenServer.call(ITKQueue.ConsumerConnection, :connection)
 
-      channel =
-        connection
-        |> Channel.open()
-        |> Channel.bind(queue_name, routing_key)
+    channel =
+      connection
+      |> Channel.open()
+      |> Channel.bind(queue_name, routing_key)
 
-      {:ok, _} = AMQP.Basic.consume(channel, queue_name, self())
-      {:ok, %{channel: channel, subscription: subscription}}
-    end)
+    {:ok, _} = AMQP.Basic.consume(channel, queue_name, self())
+    {:ok, %{channel: channel, subscription: subscription}}
   end
 
   defp consume_async(channel, meta, payload, subscription) do
