@@ -13,11 +13,11 @@ defmodule ITKQueue.Consumer do
 
   @doc false
   def start_link(subscription = %Subscription{}) do
-    GenServer.start_link(__MODULE__, subscription, [])
+    GenServer.start_link(__MODULE__, subscription, name: {:global, subscription.queue_name})
   end
 
   @doc false
-  def init(subscription) do
+  def init(subscription = %Subscription{}) do
     subscribe(subscription)
   end
 
