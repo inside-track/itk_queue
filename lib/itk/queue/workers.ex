@@ -4,12 +4,12 @@ defmodule ITKQueue.Workers do
   use GenServer
 
   @doc false
-  def start_link do
-    GenServer.start_link(__MODULE__, :ok, [])
+  def start_link(arg) do
+    GenServer.start_link(__MODULE__, arg, [])
   end
 
   @doc false
-  def init(:ok) do
+  def init(_arg) do
     if start_workers?() do
       Process.send_after(self(), :start_workers, 5000)
     end

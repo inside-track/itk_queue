@@ -6,6 +6,11 @@ defmodule ITKQueue.Connection do
   """
 
   @doc false
+  def start_link(opts, name) do
+    GenServer.start_link(__MODULE__, opts, name: name)
+  end
+
+  @doc false
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts)
   end

@@ -11,7 +11,7 @@ defmodule ITKQueue do
 
   @doc false
   def start(_type, _args) do
-    opts = [strategy: :one_for_one, name: ITKQueue.Supervisor]
+    opts = [strategy: :rest_for_one, name: ITKQueue.Supervisor]
 
     environment()
     |> children
@@ -33,12 +33,16 @@ defmodule ITKQueue do
   defp children(_), do: children()
 
   defp children do
-    import Supervisor.Spec
-
     [
-      worker(ITKQueue.ConnectionPool, []),
-      supervisor(ITKQueue.ConsumerSupervisor, []),
-      worker(ITKQueue.Workers, [])
+      ITKQueue.ConnectionPool,
+      %{
+        id: ITKQueue.ConsumerConnection,
+        start:
+          {ITKQueue.Connection, :start_link,
+           [[amqp_url: amqp_url()], ITKQueue.ConsumerConnection]}
+      },
+      ITKQueue.ConsumerSupervisor,
+      ITKQueue.Workers
     ]
   end
 
@@ -154,5 +158,9 @@ defmodule ITKQueue do
   defp do_publish(routing_key, message, options) do
     Publisher.publish(routing_key, message, [], options)
     :ok
+  end
+
+  defp amqp_url do
+    Application.get_env(:itk_queue, :amqp_url, "amqp://localhost:5672")
   end
 end

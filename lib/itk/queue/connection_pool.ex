@@ -13,13 +13,13 @@ defmodule ITKQueue.ConnectionPool do
   @pool_name :amqp_pool
 
   @doc false
-  def start_link do
-    Supervisor.start_link(__MODULE__, :ok)
+  def start_link(arg) do
+    Supervisor.start_link(__MODULE__, arg)
   end
 
   @doc false
-  @spec init(:ok) :: no_return
-  def init(:ok) do
+  @spec init(term) :: no_return
+  def init(_arg) do
     pool_opts = [
       name: {:local, @pool_name},
       worker_module: Connection,
