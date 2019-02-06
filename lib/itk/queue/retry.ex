@@ -22,12 +22,14 @@ defmodule ITKQueue.Retry do
           message :: ITKQueue.message(),
           meta :: ITKQueue.metadata()
         ) :: no_return
-  def delay(channel, %Subscription{routing_key: routing_key}, message, %{headers: headers})
+  def delay(channel, %Subscription{queue_name: queue_name, routing_key: routing_key}, message, %{
+        headers: headers
+      })
       when is_map(message) do
     retry_count = count(headers) + 1
-    headers = [{"retry_count", :long, retry_count}]
+    headers = [{"retry_count", :long, retry_count}, {"original_queue", :longstr, queue_name}]
     identifier = DateTime.utc_now() |> DateTime.to_unix(:nanoseconds)
-    queue_name = "retry.queue.#{routing_key}.#{identifier}"
+    queue_name = "retry.queue.#{queue_name}.#{identifier}"
     expiration = expiration_time(retry_count)
 
     {:ok, _} =
