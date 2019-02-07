@@ -78,24 +78,19 @@ defmodule ITKQueue.Consumer do
     message = payload |> parse_payload |> set_message_uuid
     retry_count = Headers.get(headers, "retry_count")
 
-    if retry_count do
-      Logger.info(
-        "Starting retry ##{retry_count} on #{payload}",
-        message_id: message_uuid(message),
-        queue_name: queue_name,
-        routing_key: routing_key
-      )
-    else
-      Logger.info(
-        "Starting on #{payload}",
-        message_id: message_uuid(message),
-        queue_name: queue_name,
-        routing_key: routing_key
-      )
-    end
-
     try do
-      consume_message(message, channel, meta, subscription)
+      if retry_count do
+        retry_message(message, channel, meta, subscription)
+      else
+        Logger.info(
+          "Starting on #{inspect(message)}",
+          message_id: message_uuid(message),
+          queue_name: queue_name,
+          routing_key: routing_key
+        )
+
+        consume_message(message, channel, meta, subscription)
+      end
     rescue
       e ->
         Logger.error(
@@ -168,6 +163,33 @@ defmodule ITKQueue.Consumer do
           queue_name: queue_name,
           routing_key: routing_key
         )
+    end
+  end
+
+  defp retry_message(
+         message,
+         channel,
+         meta = %{delivery_tag: tag, headers: headers},
+         subscription = %Subscription{
+           queue_name: queue_name,
+           routing_key: routing_key
+         }
+       ) do
+    retry_count = Headers.get(headers, "retry_count")
+    original_queue = Headers.get(headers, "original_queue")
+
+    if original_queue == queue_name do
+      Logger.info(
+        "Starting retry ##{retry_count} on #{inspect(message)}",
+        message_id: message_uuid(message),
+        queue_name: queue_name,
+        routing_key: routing_key
+      )
+
+      consume_message(message, channel, meta, subscription)
+    else
+      # This consumer has already consumed this message, don't consume it again.
+      AMQP.Basic.ack(channel, tag)
     end
   end
 

@@ -7,6 +7,7 @@ defmodule ITKQueueTest do
         channel = ITKQueue.Channel.open(connection)
         AMQP.Queue.delete(channel, "my-test-queue-1")
         AMQP.Queue.delete(channel, "my-test-queue-2")
+        AMQP.Queue.delete(channel, "my-test-queue-3")
         ITKQueue.Channel.close(channel)
       end)
     end)
@@ -33,8 +34,18 @@ defmodule ITKQueueTest do
       end
     end)
 
+    ITKQueue.subscribe("my-test-queue-3", "test.queue2", fn _message, headers ->
+      {_, _, retry_count} =
+        Enum.find(headers, {nil, nil, 0}, fn {name, _type, _value} -> name == "retry_count" end)
+
+      if retry_count > 0 do
+        send(pid, :bad)
+      end
+    end)
+
     ITKQueue.publish("test.queue2", %{test: "me"})
     assert_receive :ok, 5_000
+    refute_receive :bad, 5_000
   end
 
   test "retrying failed messages without an exception" do
