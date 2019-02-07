@@ -120,13 +120,19 @@ defmodule ITKQueue.Consumer do
     Map.put(message, "metadata", metadata)
   end
 
-  defp set_message_uuid(message) do
-    metadata =
-      message
-      |> Map.get(:metadata, %{})
-      |> Map.put(:uuid, UUID.uuid4())
-
+  defp set_message_uuid(message = %{metadata: metadata}) do
+    metadata = Map.put(metadata, :uuid, UUID.uuid4())
     Map.put(message, :metadata, metadata)
+  end
+
+  defp set_message_uuid(message) do
+    if use_atom_keys?() do
+      metadata = %{uuid: UUID.uuid4()}
+      Map.put(message, :metadata, metadata)
+    else
+      metadata = %{"uuid" => UUID.uuid4()}
+      Map.put(message, "metadata", metadata)
+    end
   end
 
   defp message_uuid(%{metadata: %{uuid: uuid}}), do: uuid
