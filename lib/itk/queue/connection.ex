@@ -19,7 +19,8 @@ defmodule ITKQueue.Connection do
   def init(opts) do
     Logger.info("Establishing AMQP connection")
     Process.flag(:trap_exit, true)
-    connection = connect(Keyword.get(opts, :amqp_url))
+    params = build_params(URI.parse(Keyword.get(opts, :amqp_url)), Keyword.get(opts, :heartbeat))
+    connection = connect(params)
     {:ok, connection}
   end
 
@@ -33,21 +34,29 @@ defmodule ITKQueue.Connection do
     {:stop, :normal, state}
   end
 
-  defp connect(url) do
-    url
-    |> AMQP.Connection.open()
-    |> handle_connection_result(url)
+  defp build_params(%{host: host, port: port, userinfo: nil}, heartbeat) do
+    [host: host, port: port, heartbeat: heartbeat]
   end
 
-  defp handle_connection_result({:ok, connection}, _url) do
+  defp build_params(%{host: host, port: port, userinfo: userinfo}, heartbeat) do
+    [username, password] = String.split(userinfo, ":")
+    [host: host, port: port, username: username, password: password, heartbeat: heartbeat]
+  end
+
+  defp connect(params) do
+    AMQP.Connection.open(params)
+    |> handle_connection_result(params)
+  end
+
+  defp handle_connection_result({:ok, connection}, _params) do
     Process.link(connection.pid)
     connection
   end
 
-  defp handle_connection_result({:error, _}, url) do
+  defp handle_connection_result({:error, _}, params) do
     Logger.info("AMQP connection failed, retrying")
     Process.sleep(1000)
-    connect(url)
+    connect(params)
   end
 
   def terminate(_reason, connection) do

@@ -28,7 +28,7 @@ defmodule ITKQueue.ConnectionPool do
     ]
 
     children = [
-      :poolboy.child_spec(@pool_name, pool_opts, amqp_url: amqp_url())
+      :poolboy.child_spec(@pool_name, pool_opts, amqp_url: amqp_url(), heartbeat: heartbeat())
     ]
 
     supervise(children, strategy: :one_for_one, name: __MODULE__)
@@ -111,6 +111,10 @@ defmodule ITKQueue.ConnectionPool do
 
   defp amqp_url do
     Application.get_env(:itk_queue, :amqp_url, "amqp://localhost:5672")
+  end
+
+  defp heartbeat do
+    Application.get_env(:itk_queue, :heartbeat, 0)
   end
 
   defp running_library_tests? do

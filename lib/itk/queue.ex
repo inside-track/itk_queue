@@ -39,7 +39,7 @@ defmodule ITKQueue do
         id: ITKQueue.ConsumerConnection,
         start:
           {ITKQueue.Connection, :start_link,
-           [[amqp_url: amqp_url()], ITKQueue.ConsumerConnection]}
+           [[amqp_url: amqp_url(), heartbeat: heartbeat()], ITKQueue.ConsumerConnection]}
       },
       ITKQueue.ConsumerSupervisor,
       ITKQueue.Workers
@@ -162,5 +162,9 @@ defmodule ITKQueue do
 
   defp amqp_url do
     Application.get_env(:itk_queue, :amqp_url, "amqp://localhost:5672")
+  end
+
+  defp heartbeat do
+    Application.get_env(:itk_queue, :heartbeat, 0)
   end
 end
