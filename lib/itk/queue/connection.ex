@@ -34,8 +34,17 @@ defmodule ITKQueue.Connection do
     {:stop, :normal, state}
   end
 
+  defp build_params(%{host: host, port: nil, userinfo: nil}, heartbeat) do
+    [host: host, heartbeat: heartbeat]
+  end
+
   defp build_params(%{host: host, port: port, userinfo: nil}, heartbeat) do
     [host: host, port: port, heartbeat: heartbeat]
+  end
+
+  defp build_params(%{host: host, port: nil, userinfo: userinfo}, heartbeat) do
+    [username, password] = String.split(userinfo, ":")
+    [host: host, username: username, password: password, heartbeat: heartbeat]
   end
 
   defp build_params(%{host: host, port: port, userinfo: userinfo}, heartbeat) do
