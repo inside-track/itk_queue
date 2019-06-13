@@ -62,12 +62,6 @@ defmodule ITKQueue.Connection do
     connection
   end
 
-  defp handle_connection_result({:error, _}, params) do
-    Logger.info("AMQP connection failed, retrying")
-    Process.sleep(1000)
-    connect(params)
-  end
-
   def terminate(_reason, connection) do
     Logger.info("Terminating AMQP connection")
 
