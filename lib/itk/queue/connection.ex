@@ -30,8 +30,17 @@ defmodule ITKQueue.Connection do
   end
 
   @doc false
-  def handle_info({:EXIT, _pid, _reason}, state) do
+  def handle_info({:EXIT, _pid, reason}, state) do
+    Logger.info("AMQP connection status exit: #{inspect(reason)} #{inspect(state)}")
     {:stop, :normal, state}
+  end
+
+  @doc """
+    handles stopping GenServer. Will be restarted by Supervisor.
+  """
+  def handle_info({:DOWN, _, :process, _pid, reason}, _) do
+    Logger.info("AMQP connection status down: #{inspect(reason)}")
+    {:stop, {:connection_lost, reason}, nil}
   end
 
   defp build_params(%{host: host, port: nil, userinfo: nil}, heartbeat) do
@@ -62,14 +71,23 @@ defmodule ITKQueue.Connection do
     connection
   end
 
-  def terminate(_reason, connection) do
-    Logger.info("Terminating AMQP connection")
+  defp handle_connection_result({:error, _}, params) do
+    Logger.info("AMQP connection failed, retrying")
+    Process.sleep(1000)
+    connect(params)
+  end
+
+  @doc """
+    handles server down
+  """
+  def terminate(reason, connection) do
+    Logger.info("Terminating AMQP connection: #{inspect(reason)}")
 
     if Process.alive?(connection.pid) do
       Logger.info("Closing AMQP connection")
       AMQP.Connection.close(connection)
     end
 
-    :normal
+    :reason
   end
 end
