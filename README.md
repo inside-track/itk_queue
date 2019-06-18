@@ -107,3 +107,9 @@ defmodule MyWorker do
   end
 end
 ```
+
+## Publishing itk-queue Package
+
+- Register with an account on https://hex.pm, ping @islamhamdi/@gaustin for granting ownership of the package.
+- Go to the correct path under `itk_queue/` locally, run `mix hex.publish` and follow the steps (requires hex.pm account creds).
+- Once your package has been published to hex repos, update the dependent services (e.g: itk-stuendets/...) to use the new version instead.
