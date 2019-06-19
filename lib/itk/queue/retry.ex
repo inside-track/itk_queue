@@ -2,7 +2,7 @@ defmodule ITKQueue.Retry do
   @moduledoc """
   Handles retrying messages that fail to process.
 
-  This is accomplished by creating a new temporary queue and pubishing the message to that queue.
+  This is accomplished by creating a new temporary queue and publishing the message to that queue.
 
   The queue is configured so that the message expires after a delay and when it expires it is republished with
   the original routing key.
