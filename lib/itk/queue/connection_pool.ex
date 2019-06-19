@@ -114,7 +114,7 @@ defmodule ITKQueue.ConnectionPool do
   end
 
   defp heartbeat do
-    Application.get_env(:itk_queue, :heartbeat, 0)
+    Application.get_env(:itk_queue, :heartbeat, 60)
   end
 
   defp running_library_tests? do
