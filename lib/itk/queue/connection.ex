@@ -5,6 +5,18 @@ defmodule ITKQueue.Connection do
   Manages a connection to AMQP.
   """
 
+  defstruct params: [],
+            connection: nil,
+            ref: nil
+
+  use GenServer
+
+  @type t :: %__MODULE__{
+          params: Keyword.t(),
+          connection: %AMQP.Connection{pid: pid()},
+          ref: reference()
+        }
+
   @doc false
   def start_link(opts, name) do
     GenServer.start_link(__MODULE__, opts, name: name)
@@ -20,27 +32,21 @@ defmodule ITKQueue.Connection do
     Logger.info("Establishing AMQP connection")
     Process.flag(:trap_exit, true)
     params = build_params(URI.parse(Keyword.get(opts, :amqp_url)), Keyword.get(opts, :heartbeat))
-    connection = connect(params)
-    {:ok, connection}
+    state = connect(params)
+    {:ok, state}
   end
 
   @doc false
-  def handle_call(:connection, _from, connection) do
-    {:reply, connection, connection}
-  end
-
-  @doc false
-  def handle_info({:EXIT, _pid, reason}, state) do
-    Logger.info("AMQP connection status exit: #{inspect(reason)} #{inspect(state)}")
-    {:stop, :normal, state}
+  def handle_call(:connection, _from, state) do
+    {:reply, state.connection, state}
   end
 
   @doc """
-    handles stopping GenServer. Will be restarted by Supervisor.
+  Handles DOWN message from monitored AMQP connection pid.
   """
-  def handle_info({:DOWN, _, :process, _pid, reason}, _) do
-    Logger.info("AMQP connection status down: #{inspect(reason)}")
-    {:stop, {:connection_lost, reason}, nil}
+  def handle_info({:DOWN, _ref, :process, _pid, reason}, state) do
+    Logger.info("AMQP connection went down: #{inspect(reason)}")
+    {:stop, :connection_lost, state}
   end
 
   defp build_params(%{host: host, port: nil, userinfo: nil}, heartbeat) do
@@ -61,14 +67,15 @@ defmodule ITKQueue.Connection do
     [host: host, port: port, username: username, password: password, heartbeat: heartbeat]
   end
 
+  # This will block the GenServer until connection is opened successfully.
   defp connect(params) do
     AMQP.Connection.open(params)
     |> handle_connection_result(params)
   end
 
-  defp handle_connection_result({:ok, connection}, _params) do
-    Process.link(connection.pid)
-    connection
+  defp handle_connection_result({:ok, connection}, params) do
+    ref = Process.monitor(connection.pid)
+    %__MODULE__{params: params, connection: connection, ref: ref}
   end
 
   defp handle_connection_result({:error, _}, params) do
@@ -78,16 +85,10 @@ defmodule ITKQueue.Connection do
   end
 
   @doc """
-    handles server down
+  Handles termination of this GenServer.
   """
-  def terminate(reason, connection) do
-    Logger.info("Terminating AMQP connection: #{inspect(reason)}")
-
-    if Process.alive?(connection.pid) do
-      Logger.info("Closing AMQP connection")
-      AMQP.Connection.close(connection)
-    end
-
+  def terminate(reason, _state) do
+    Logger.info("Terminating AMQP connection manager: #{inspect(reason)}")
     :reason
   end
 end
