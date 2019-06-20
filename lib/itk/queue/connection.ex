@@ -106,8 +106,19 @@ defmodule ITKQueue.Connection do
   @doc """
   Handles termination of this GenServer.
   """
-  def terminate(reason, _state) do
+  def terminate(reason, %__MODULE__{connection: nil}) do
     Logger.info("Terminating AMQP connection manager: #{inspect(reason)}")
+    :reason
+  end
+
+  def terminate(reason, %__MODULE__{connection: conn}) do
+    Logger.info("Terminating AMQP connection manager: #{inspect(reason)}")
+
+    if Process.alive?(conn.pid) do
+      Logger.info("Closing AMQP connection")
+      AMQP.Connection.close(conn)
+    end
+
     :reason
   end
 end
