@@ -7,14 +7,16 @@ defmodule ITKQueue.Connection do
 
   defstruct params: [],
             connection: nil,
-            ref: nil
+            ref: nil,
+            reconnect: false
 
   use GenServer
 
   @type t :: %__MODULE__{
           params: Keyword.t(),
           connection: %AMQP.Connection{pid: pid()},
-          ref: reference()
+          ref: reference(),
+          reconnect: boolean()
         }
 
   @doc false
@@ -33,7 +35,7 @@ defmodule ITKQueue.Connection do
     Process.flag(:trap_exit, true)
     params = build_params(URI.parse(Keyword.get(opts, :amqp_url)), Keyword.get(opts, :heartbeat))
     state = connect(params)
-    {:ok, state}
+    {:ok, %__MODULE__{state | reconnect: opts[:reconnect]}}
   end
 
   @doc false
@@ -46,7 +48,19 @@ defmodule ITKQueue.Connection do
   """
   def handle_info({:DOWN, _ref, :process, _pid, reason}, state) do
     Logger.info("AMQP connection went down: #{inspect(reason)}")
-    {:stop, :connection_lost, state}
+
+    if state.reconnect do
+      Process.send_after(self(), :reconnect, 1000)
+      {:noreply, state}
+    else
+      {:stop, :connection_lost, state}
+    end
+  end
+
+  @doc false
+  def handle_info(:reconnect, %{params: params, reconnect: reconnect}) do
+    state = connect(params)
+    {:noreply, %__MODULE__{state | reconnect: reconnect}}
   end
 
   defp build_params(%{host: host, port: nil, userinfo: nil}, heartbeat) do

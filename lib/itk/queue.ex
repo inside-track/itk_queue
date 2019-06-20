@@ -39,7 +39,10 @@ defmodule ITKQueue do
         id: ITKQueue.ConsumerConnection,
         start:
           {ITKQueue.Connection, :start_link,
-           [[amqp_url: amqp_url(), heartbeat: heartbeat()], ITKQueue.ConsumerConnection]}
+           [
+             [amqp_url: amqp_url(), heartbeat: heartbeat(), reconnect: true],
+             ITKQueue.ConsumerConnection
+           ]}
       },
       ITKQueue.ConsumerSupervisor,
       ITKQueue.Workers
