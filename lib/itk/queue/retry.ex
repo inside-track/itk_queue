@@ -28,7 +28,7 @@ defmodule ITKQueue.Retry do
       when is_map(message) do
     retry_count = count(headers) + 1
     headers = [{"retry_count", :long, retry_count}, {"original_queue", :longstr, queue_name}]
-    identifier = DateTime.utc_now() |> DateTime.to_unix(:nanoseconds)
+    identifier = DateTime.utc_now() |> DateTime.to_unix(:nanosecond)
     queue_name = "retry.queue.#{queue_name}.#{identifier}"
     expiration = expiration_time(retry_count)
 
