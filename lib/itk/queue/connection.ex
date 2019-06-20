@@ -7,7 +7,6 @@ defmodule ITKQueue.Connection do
 
   defstruct params: [],
             connection: nil,
-            ref: nil,
             reconnect: false
 
   use GenServer
@@ -15,9 +14,10 @@ defmodule ITKQueue.Connection do
   @type t :: %__MODULE__{
           params: Keyword.t(),
           connection: %AMQP.Connection{pid: pid()},
-          ref: reference(),
           reconnect: boolean()
         }
+
+  @reconnect_interval 1000
 
   @doc false
   def start_link(opts, name) do
@@ -38,7 +38,11 @@ defmodule ITKQueue.Connection do
     {:ok, %__MODULE__{state | reconnect: opts[:reconnect]}}
   end
 
-  @doc false
+  @doc """
+  Handles request to get AMQP connection managed by this GenServer.
+  This call will block when we are trying to reconnect, this is not recommended
+  practice, but changing this will cause a larger scope of change.
+  """
   def handle_call(:connection, _from, state) do
     {:reply, state.connection, state}
   end
@@ -50,7 +54,7 @@ defmodule ITKQueue.Connection do
     Logger.info("AMQP connection went down: #{inspect(reason)}")
 
     if state.reconnect do
-      Process.send_after(self(), :reconnect, 1000)
+      Process.send_after(self(), :reconnect, @reconnect_interval)
       {:noreply, state}
     else
       {:stop, :connection_lost, state}
@@ -88,13 +92,13 @@ defmodule ITKQueue.Connection do
   end
 
   defp handle_connection_result({:ok, connection}, params) do
-    ref = Process.monitor(connection.pid)
-    %__MODULE__{params: params, connection: connection, ref: ref}
+    Process.monitor(connection.pid)
+    %__MODULE__{params: params, connection: connection}
   end
 
   defp handle_connection_result({:error, _}, params) do
     Logger.info("AMQP connection failed, retrying")
-    Process.sleep(1000)
+    Process.sleep(@reconnect_interval)
     connect(params)
   end
 

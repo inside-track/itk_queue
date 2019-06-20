@@ -19,6 +19,8 @@ defmodule ITKQueue.Consumer do
           subscription: Subscription.t()
         }
 
+  @reconnect_interval 1000
+
   @doc false
   def start_link(subscription = %Subscription{}) do
     GenServer.start_link(__MODULE__, subscription, name: {:global, subscription.queue_name})
@@ -56,11 +58,8 @@ defmodule ITKQueue.Consumer do
   end
 
   @doc false
-  def handle_info({ref, _channel}, state) do
-    # FIXME:
-    # I'm not sure what this ref is for, I checked and it is not the monitor ref
-    # We get this after channel is re-opened.
-    Logger.debug("Got unknonw reference from channel #{inspect(ref)}")
+  def handle_info({_ref, _channel}, state) do
+    # extraneous message from AMQP.Channel.ReceiverManager
     {:noreply, state}
   end
 
@@ -70,7 +69,7 @@ defmodule ITKQueue.Consumer do
       "Channel subscribed to #{sub.queue_name} (#{sub.routing_key}) went down: #{inspect(reason)}"
     )
 
-    Process.send_after(self(), :subscribe, 1000)
+    Process.send_after(self(), :subscribe, @reconnect_interval)
     {:noreply, state}
   end
 
@@ -78,6 +77,11 @@ defmodule ITKQueue.Consumer do
   def handle_info(:subscribe, %__MODULE__{subscription: subscription}) do
     state = subscribe(subscription)
     {:noreply, state}
+  end
+
+  @doc false
+  def handle_call(:connection, _from, state) do
+    {:reply, connection(), state}
   end
 
   defp connection() do
@@ -111,7 +115,7 @@ defmodule ITKQueue.Consumer do
         %__MODULE__{channel: channel, subscription: subscription}
 
       _ ->
-        Process.send_after(self(), :subscribe, 1000)
+        Process.send_after(self(), :subscribe, @reconnect_interval)
         %__MODULE__{subscription: subscription}
     end
   end
