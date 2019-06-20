@@ -1,0 +1,44 @@
+version: 2
+jobs:
+  build:
+    working_directory: ~/itk_queue
+    environment:
+      - MIX_ENV: test
+    docker:
+      - image: circleci/elixir:1.6
+      - image: rabbitmq:3.7
+    steps:
+      - checkout
+      - run: mix local.hex --force
+      - run: mix local.rebar
+      - run: mix deps.get
+      - run: mix test
+
+  check:
+    working_directory: ~/itk_queue
+    docker:
+      - image: circleci/elixir:1.6
+    steps:
+      - checkout
+      - run: mix local.hex --force
+      - run: mix local.rebar
+      - run: mix deps.get
+      - run: mix credo --all --strict
+      - run: mix dialyzer --halt-exit-status
+      - run: mix format --check-formatted
+
+workflows:
+  version: 2
+  build-deploy:
+    jobs:
+      - build
+      - check:
+          requires:
+            - build
+          filters:
+            branches:
+              ignore: master
+
+notify:
+  webhooks:
+    - url: https://itk-webhook.ucoachapp.com/circle
