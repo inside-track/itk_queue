@@ -23,7 +23,7 @@ defmodule ITKQueue.Mixfile do
 
   def application do
     [
-      extra_applications: [:logger, :amqp],
+      extra_applications: [:lager, :logger, :amqp],
       mod: {ITKQueue, []}
     ]
   end
