@@ -51,11 +51,11 @@ defmodule ITKQueue.Connection do
   Handles DOWN message from monitored AMQP connection pid.
   """
   def handle_info({:DOWN, _ref, :process, _pid, reason}, state) do
-    Logger.info("AMQP connection went down: #{inspect(reason)}")
+    Logger.error("AMQP connection went down: #{inspect(reason)}")
 
     if state.reconnect do
       Process.send_after(self(), :reconnect, @reconnect_interval)
-      {:noreply, state}
+      {:noreply, %__MODULE__{state | connection: nil}}
     else
       {:stop, :connection_lost, state}
     end

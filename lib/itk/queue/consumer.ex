@@ -86,9 +86,10 @@ defmodule ITKQueue.Consumer do
 
   defp connection() do
     try do
-      connection = GenServer.call(ITKQueue.ConsumerConnection, :connection)
-
-      {:ok, connection}
+      case GenServer.call(ITKQueue.ConsumerConnection, :connection) do
+        nil -> {:error, :connection_lost}
+        connection -> {:ok, connection}
+      end
     catch
       :exit, reason ->
         {:error, reason}
@@ -115,6 +116,12 @@ defmodule ITKQueue.Consumer do
         %__MODULE__{channel: channel, subscription: subscription}
 
       _ ->
+        Logger.error(
+          "Subscribe error: cannot get connection",
+          queue_name: queue_name,
+          routing_key: routing_key
+        )
+
         Process.send_after(self(), :subscribe, @reconnect_interval)
         %__MODULE__{subscription: subscription}
     end

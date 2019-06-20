@@ -28,7 +28,11 @@ defmodule ITKQueue.ConnectionPool do
     ]
 
     children = [
-      :poolboy.child_spec(@pool_name, pool_opts, amqp_url: amqp_url(), heartbeat: heartbeat())
+      :poolboy.child_spec(@pool_name, pool_opts,
+        amqp_url: amqp_url(),
+        heartbeat: heartbeat(),
+        reconnect: true
+      )
     ]
 
     supervise(children, strategy: :one_for_one, name: __MODULE__)
