@@ -17,7 +17,11 @@ defmodule ITKQueue.Mixfile do
       start_permanent: Mix.env() == :prod,
       package: package(),
       docs: [main: "readme", extras: ["README.md"]],
-      deps: deps()
+      deps: deps(),
+      dialyzer: [
+        plt_add_apps: [:mix],
+        plt_add_deps: true
+      ]
     ]
   end
 
