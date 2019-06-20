@@ -122,15 +122,17 @@ defmodule ITKQueue.Publisher do
           headers :: Headers.t(),
           stacktrace :: any,
           options :: Keyword.t()
-        ) :: no_return
+        ) :: pid()
   def publish_async(routing_key, message, headers, stacktrace, options)
       when is_bitstring(routing_key) do
     if testing?() do
       fake_publish(routing_key, message)
       :ok
     else
-      Task.async(fn ->
-        publish(routing_key, message, headers, stacktrace, options)
+      spawn(fn ->
+        {ref, connection} = ConnectionPool.checkout()
+        publish(connection, routing_key, message, options)
+        ConnectionPool.checkin(ref)
       end)
     end
   end

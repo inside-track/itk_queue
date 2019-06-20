@@ -90,7 +90,7 @@ defmodule ITKQueue.Consumer do
       connection -> {:ok, connection}
     end
   catch
-    e ->
+    _ ->
       {:error, :connection_lost}
   end
 
