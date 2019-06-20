@@ -12,7 +12,7 @@ defmodule ITKQueue.Consumer do
 
   use GenServer
 
-  alias ITKQueue.{Channel, Headers, Subscription, Retry, DefaultErrorHandler}
+  alias ITKQueue.{Channel, DefaultErrorHandler, Headers, Retry, Subscription}
 
   @type t :: %__MODULE__{
           channel: AMQP.Channel.t(),
@@ -64,7 +64,7 @@ defmodule ITKQueue.Consumer do
   end
 
   @doc false
-  def handle_info({:DOWN, _ref, :process, _pid, reason}, %{subscription: sub} = state) do
+  def handle_info({:DOWN, _ref, :process, _pid, reason}, state = %{subscription: sub}) do
     Logger.error(
       "Channel subscribed to #{sub.queue_name} (#{sub.routing_key}) went down: #{inspect(reason)}"
     )
@@ -84,16 +84,14 @@ defmodule ITKQueue.Consumer do
     {:reply, connection(), state}
   end
 
-  defp connection() do
-    try do
-      case GenServer.call(ITKQueue.ConsumerConnection, :connection) do
-        nil -> {:error, :connection_lost}
-        connection -> {:ok, connection}
-      end
-    catch
-      :exit, reason ->
-        {:error, reason}
+  defp connection do
+    case GenServer.call(ITKQueue.ConsumerConnection, :connection) do
+      nil -> {:error, :connection_lost}
+      connection -> {:ok, connection}
     end
+  catch
+    e ->
+      {:error, :connection_lost}
   end
 
   defp subscribe(subscription = %Subscription{queue_name: queue_name, routing_key: routing_key}) do

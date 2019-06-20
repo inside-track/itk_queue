@@ -18,7 +18,7 @@ defmodule ITKQueue do
     |> Supervisor.start_link(opts)
   end
 
-  defp environment() do
+  defp environment do
     Application.get_env(:itk_queue, :env)
   end
 

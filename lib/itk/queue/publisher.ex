@@ -3,7 +3,7 @@ require Logger
 defmodule ITKQueue.Publisher do
   @moduledoc false
 
-  alias ITKQueue.{ConnectionPool, Channel, Fallback, Headers}
+  alias ITKQueue.{Channel, ConnectionPool, Fallback, Headers}
 
   @doc """
   Publishes a message to the given routing key.

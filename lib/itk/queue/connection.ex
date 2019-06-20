@@ -87,7 +87,8 @@ defmodule ITKQueue.Connection do
 
   # This will block the GenServer until connection is opened successfully.
   defp connect(params) do
-    AMQP.Connection.open(params)
+    params
+    |> AMQP.Connection.open()
     |> handle_connection_result(params)
   end
 

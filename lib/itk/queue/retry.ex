@@ -8,7 +8,7 @@ defmodule ITKQueue.Retry do
   the original routing key.
   """
 
-  alias ITKQueue.{Subscription, Publisher, Headers}
+  alias ITKQueue.{Headers, Publisher, Subscription}
 
   @doc """
   Retry the given message after a delay.
