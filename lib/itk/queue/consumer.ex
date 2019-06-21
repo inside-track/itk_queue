@@ -58,12 +58,6 @@ defmodule ITKQueue.Consumer do
   end
 
   @doc false
-  def handle_info({_ref, _channel}, state) do
-    # extraneous message from AMQP.Channel.ReceiverManager
-    {:noreply, state}
-  end
-
-  @doc false
   def handle_info({:DOWN, _ref, :process, _pid, reason}, state = %{subscription: sub}) do
     Logger.error(
       "Channel subscribed to #{sub.queue_name} (#{sub.routing_key}) went down: #{inspect(reason)}"
@@ -76,6 +70,11 @@ defmodule ITKQueue.Consumer do
   @doc false
   def handle_info(:subscribe, %__MODULE__{subscription: subscription}) do
     state = subscribe(subscription)
+    {:noreply, state}
+  end
+
+  @doc false
+  def handle_info(_, state) do
     {:noreply, state}
   end
 

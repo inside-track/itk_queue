@@ -17,11 +17,17 @@ defmodule ITKQueue.Workers do
     {:ok, %{}}
   end
 
+  @doc false
   def handle_info(:start_workers, state) do
     Enum.each(:application.loaded_applications(), fn {app, _, _} ->
       start_workers_for_application(app)
     end)
 
+    {:noreply, state}
+  end
+
+  @doc false
+  def handle_info(_, state) do
     {:noreply, state}
   end
 

@@ -67,6 +67,11 @@ defmodule ITKQueue.Connection do
     {:noreply, %__MODULE__{state | reconnect: reconnect}}
   end
 
+  @doc false
+  def handle_info(_, state) do
+    {:noreply, state}
+  end
+
   defp build_params(%{host: host, port: nil, userinfo: nil}, heartbeat) do
     [host: host, heartbeat: heartbeat]
   end
