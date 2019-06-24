@@ -2,13 +2,13 @@ defmodule ITKQueue.Mixfile do
   use Mix.Project
 
   @project_url "https://github.com/inside-track/itk_queue"
-  @version "0.10.9"
+  @version "0.10.10"
 
   def project do
     [
       app: :itk_queue,
       version: @version,
-      elixir: "~> 1.6",
+      elixir: "~> 1.8",
       description:
         "Provides convenience methods for subscribing to queues and publishing messages.",
       source_url: @project_url,
@@ -17,13 +17,17 @@ defmodule ITKQueue.Mixfile do
       start_permanent: Mix.env() == :prod,
       package: package(),
       docs: [main: "readme", extras: ["README.md"]],
-      deps: deps()
+      deps: deps(),
+      dialyzer: [
+        plt_add_apps: [:mix],
+        plt_add_deps: true
+      ]
     ]
   end
 
   def application do
     [
-      extra_applications: [:logger, :amqp],
+      extra_applications: [:lager, :logger, :amqp],
       mod: {ITKQueue, []}
     ]
   end
@@ -31,7 +35,7 @@ defmodule ITKQueue.Mixfile do
   defp deps do
     [
       {:jason, "~> 1.0"},
-      {:amqp, "~> 0.2"},
+      {:amqp, "~> 1.2"},
       {:httpoison, "~> 1.0"},
       {:uuid, "~> 1.1"},
       {:poolboy, "~> 1.5"},

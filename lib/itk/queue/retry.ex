@@ -2,13 +2,13 @@ defmodule ITKQueue.Retry do
   @moduledoc """
   Handles retrying messages that fail to process.
 
-  This is accomplished by creating a new temporary queue and pubishing the message to that queue.
+  This is accomplished by creating a new temporary queue and publishing the message to that queue.
 
   The queue is configured so that the message expires after a delay and when it expires it is republished with
   the original routing key.
   """
 
-  alias ITKQueue.{Subscription, Publisher, Headers}
+  alias ITKQueue.{Headers, Publisher, Subscription}
 
   @doc """
   Retry the given message after a delay.
@@ -28,7 +28,7 @@ defmodule ITKQueue.Retry do
       when is_map(message) do
     retry_count = count(headers) + 1
     headers = [{"retry_count", :long, retry_count}, {"original_queue", :longstr, queue_name}]
-    identifier = DateTime.utc_now() |> DateTime.to_unix(:nanoseconds)
+    identifier = DateTime.utc_now() |> DateTime.to_unix(:nanosecond)
     queue_name = "retry.queue.#{queue_name}.#{identifier}"
     expiration = expiration_time(retry_count)
 

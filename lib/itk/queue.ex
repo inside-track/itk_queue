@@ -18,7 +18,7 @@ defmodule ITKQueue do
     |> Supervisor.start_link(opts)
   end
 
-  defp environment() do
+  defp environment do
     Application.get_env(:itk_queue, :env)
   end
 
@@ -39,7 +39,10 @@ defmodule ITKQueue do
         id: ITKQueue.ConsumerConnection,
         start:
           {ITKQueue.Connection, :start_link,
-           [[amqp_url: amqp_url(), heartbeat: heartbeat()], ITKQueue.ConsumerConnection]}
+           [
+             [amqp_url: amqp_url(), heartbeat: heartbeat(), reconnect: true],
+             ITKQueue.ConsumerConnection
+           ]}
       },
       ITKQueue.ConsumerSupervisor,
       ITKQueue.Workers
@@ -165,6 +168,6 @@ defmodule ITKQueue do
   end
 
   defp heartbeat do
-    Application.get_env(:itk_queue, :heartbeat, 0)
+    Application.get_env(:itk_queue, :heartbeat, 60)
   end
 end

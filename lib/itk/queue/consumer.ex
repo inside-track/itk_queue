@@ -7,9 +7,19 @@ defmodule ITKQueue.Consumer do
   See `ITKQueue.ConsumerSupervisor.start_consumer/1`.
   """
 
+  defstruct channel: nil,
+            subscription: nil
+
   use GenServer
 
-  alias ITKQueue.{Channel, Headers, Subscription, Retry, DefaultErrorHandler}
+  alias ITKQueue.{Channel, DefaultErrorHandler, Headers, Retry, Subscription}
+
+  @type t :: %__MODULE__{
+          channel: AMQP.Channel.t(),
+          subscription: Subscription.t()
+        }
+
+  @reconnect_interval 1000
 
   @doc false
   def start_link(subscription = %Subscription{}) do
@@ -18,7 +28,9 @@ defmodule ITKQueue.Consumer do
 
   @doc false
   def init(subscription = %Subscription{}) do
-    subscribe(subscription)
+    Process.flag(:trap_exit, true)
+    state = subscribe(subscription)
+    {:ok, state}
   end
 
   @doc false
@@ -45,6 +57,42 @@ defmodule ITKQueue.Consumer do
     {:noreply, state}
   end
 
+  @doc false
+  def handle_info({:DOWN, _ref, :process, _pid, reason}, state = %{subscription: sub}) do
+    Logger.error(
+      "Channel subscribed to #{sub.queue_name} (#{sub.routing_key}) went down: #{inspect(reason)}"
+    )
+
+    Process.send_after(self(), :subscribe, @reconnect_interval)
+    {:noreply, state}
+  end
+
+  @doc false
+  def handle_info(:subscribe, %__MODULE__{subscription: subscription}) do
+    state = subscribe(subscription)
+    {:noreply, state}
+  end
+
+  @doc false
+  def handle_info(_, state) do
+    {:noreply, state}
+  end
+
+  @doc false
+  def handle_call(:connection, _from, state) do
+    {:reply, connection(), state}
+  end
+
+  defp connection do
+    case GenServer.call(ITKQueue.ConsumerConnection, :connection) do
+      nil -> {:error, :connection_lost}
+      connection -> {:ok, connection}
+    end
+  catch
+    _ ->
+      {:error, :connection_lost}
+  end
+
   defp subscribe(subscription = %Subscription{queue_name: queue_name, routing_key: routing_key}) do
     Logger.info(
       "Subscribing to #{queue_name} (#{routing_key})",
@@ -52,15 +100,28 @@ defmodule ITKQueue.Consumer do
       routing_key: routing_key
     )
 
-    connection = GenServer.call(ITKQueue.ConsumerConnection, :connection)
+    case connection() do
+      {:ok, connection} ->
+        channel =
+          connection
+          |> Channel.open()
+          |> Channel.bind(queue_name, routing_key)
 
-    channel =
-      connection
-      |> Channel.open()
-      |> Channel.bind(queue_name, routing_key)
+        Process.monitor(channel.pid)
 
-    {:ok, _} = AMQP.Basic.consume(channel, queue_name, self())
-    {:ok, %{channel: channel, subscription: subscription}}
+        {:ok, _} = AMQP.Basic.consume(channel, queue_name, self())
+        %__MODULE__{channel: channel, subscription: subscription}
+
+      _ ->
+        Logger.error(
+          "Subscribe error: cannot get connection",
+          queue_name: queue_name,
+          routing_key: routing_key
+        )
+
+        Process.send_after(self(), :subscribe, @reconnect_interval)
+        %__MODULE__{subscription: subscription}
+    end
   end
 
   defp consume_async(channel, meta, payload, subscription) do

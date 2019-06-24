@@ -6,3 +6,8 @@ config :itk_queue,
   fallback_endpoint: false,
   max_retries: 10,
   env: Mix.env()
+
+# silent amqp rabbit_common logging
+config :lager,
+  error_logger_redirect: true,
+  handlers: [level: :critical]

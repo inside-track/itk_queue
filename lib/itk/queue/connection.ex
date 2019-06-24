@@ -5,6 +5,20 @@ defmodule ITKQueue.Connection do
   Manages a connection to AMQP.
   """
 
+  defstruct params: [],
+            connection: nil,
+            reconnect: false
+
+  use GenServer
+
+  @type t :: %__MODULE__{
+          params: Keyword.t(),
+          connection: %AMQP.Connection{pid: pid()},
+          reconnect: boolean()
+        }
+
+  @reconnect_interval 1000
+
   @doc false
   def start_link(opts, name) do
     GenServer.start_link(__MODULE__, opts, name: name)
@@ -20,27 +34,42 @@ defmodule ITKQueue.Connection do
     Logger.info("Establishing AMQP connection")
     Process.flag(:trap_exit, true)
     params = build_params(URI.parse(Keyword.get(opts, :amqp_url)), Keyword.get(opts, :heartbeat))
-    connection = connect(params)
-    {:ok, connection}
-  end
-
-  @doc false
-  def handle_call(:connection, _from, connection) do
-    {:reply, connection, connection}
-  end
-
-  @doc false
-  def handle_info({:EXIT, _pid, reason}, state) do
-    Logger.info("AMQP connection status exit: #{inspect(reason)} #{inspect(state)}")
-    {:stop, :normal, state}
+    state = connect(params)
+    {:ok, %__MODULE__{state | reconnect: opts[:reconnect]}}
   end
 
   @doc """
-    handles stopping GenServer. Will be restarted by Supervisor.
+  Handles request to get AMQP connection managed by this GenServer.
+  This call will block when we are trying to reconnect, this is not recommended
+  practice, but changing this will cause a larger scope of change.
   """
-  def handle_info({:DOWN, _, :process, _pid, reason}, _) do
-    Logger.info("AMQP connection status down: #{inspect(reason)}")
-    {:stop, {:connection_lost, reason}, nil}
+  def handle_call(:connection, _from, state) do
+    {:reply, state.connection, state}
+  end
+
+  @doc """
+  Handles DOWN message from monitored AMQP connection pid.
+  """
+  def handle_info({:DOWN, _ref, :process, _pid, reason}, state) do
+    Logger.error("AMQP connection went down: #{inspect(reason)}")
+
+    if state.reconnect do
+      Process.send_after(self(), :reconnect, @reconnect_interval)
+      {:noreply, %__MODULE__{state | connection: nil}}
+    else
+      {:stop, :connection_lost, state}
+    end
+  end
+
+  @doc false
+  def handle_info(:reconnect, %{params: params, reconnect: reconnect}) do
+    state = connect(params)
+    {:noreply, %__MODULE__{state | reconnect: reconnect}}
+  end
+
+  @doc false
+  def handle_info(_, state) do
+    {:noreply, state}
   end
 
   defp build_params(%{host: host, port: nil, userinfo: nil}, heartbeat) do
@@ -61,31 +90,38 @@ defmodule ITKQueue.Connection do
     [host: host, port: port, username: username, password: password, heartbeat: heartbeat]
   end
 
+  # This will block the GenServer until connection is opened successfully.
   defp connect(params) do
-    AMQP.Connection.open(params)
+    params
+    |> AMQP.Connection.open()
     |> handle_connection_result(params)
   end
 
-  defp handle_connection_result({:ok, connection}, _params) do
-    Process.link(connection.pid)
-    connection
+  defp handle_connection_result({:ok, connection}, params) do
+    Process.monitor(connection.pid)
+    %__MODULE__{params: params, connection: connection}
   end
 
   defp handle_connection_result({:error, _}, params) do
     Logger.info("AMQP connection failed, retrying")
-    Process.sleep(1000)
+    Process.sleep(@reconnect_interval)
     connect(params)
   end
 
   @doc """
-    handles server down
+  Handles termination of this GenServer.
   """
-  def terminate(reason, connection) do
-    Logger.info("Terminating AMQP connection: #{inspect(reason)}")
+  def terminate(reason, %__MODULE__{connection: nil}) do
+    Logger.info("Terminating AMQP connection manager: #{inspect(reason)}")
+    :reason
+  end
 
-    if Process.alive?(connection.pid) do
+  def terminate(reason, %__MODULE__{connection: conn}) do
+    Logger.info("Terminating AMQP connection manager: #{inspect(reason)}")
+
+    if Process.alive?(conn.pid) do
       Logger.info("Closing AMQP connection")
-      AMQP.Connection.close(connection)
+      AMQP.Connection.close(conn)
     end
 
     :reason

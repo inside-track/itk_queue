@@ -1,4 +1,4 @@
-defmodule ITKQueueTest do
+defmodule ITKQueue.Test do
   use ExUnit.Case
 
   setup do
@@ -13,7 +13,7 @@ defmodule ITKQueueTest do
     end)
   end
 
-  test "publishing and subscribing with a function hander" do
+  test "publishing and subscribing with a function handler" do
     pid = self()
     ITKQueue.subscribe("my-test-queue-1", "test.queue1", fn _message -> send(pid, :ok) end)
     ITKQueue.publish("test.queue1", %{test: "me"})
