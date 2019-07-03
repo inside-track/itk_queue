@@ -163,11 +163,11 @@ defmodule ITKQueue do
     :ok
   end
 
-  defp amqp_url do
+  def amqp_url do
     Application.get_env(:itk_queue, :amqp_url, "amqp://localhost:5672")
   end
 
-  defp heartbeat do
-    Application.get_env(:itk_queue, :heartbeat, 60)
+  def heartbeat do
+    Application.get_env(:itk_queue, :heartbeat, 10)
   end
 end
