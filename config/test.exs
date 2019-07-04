@@ -7,3 +7,9 @@ config :itk_queue,
   running_library_tests: true,
   max_retries: 10,
   env: Mix.env()
+
+# silent amqp rabbit_common logging
+config :lager,
+  error_logger_redirect: true,
+  crash_log: false,
+  handlers: [level: :critical]

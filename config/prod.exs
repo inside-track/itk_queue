@@ -6,4 +6,5 @@ config :itk_queue,
 # silent amqp rabbit_common logging
 config :lager,
   error_logger_redirect: false,
+  crash_log: false,
   handlers: [level: :critical]
