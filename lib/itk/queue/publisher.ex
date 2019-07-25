@@ -268,7 +268,7 @@ defmodule ITKQueue.Publisher do
 
   defp hostname(_message) do
     {:ok, hostname} = :inet.gethostname()
-    hostname
+    to_string(hostname)
   end
 
   @spec default_exchange() :: String.t()
