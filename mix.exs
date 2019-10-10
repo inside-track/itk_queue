@@ -2,7 +2,7 @@ defmodule ITKQueue.Mixfile do
   use Mix.Project
 
   @project_url "https://github.com/inside-track/itk_queue"
-  @version "0.10.12"
+  @version "0.10.13"
 
   def project do
     [
@@ -35,8 +35,8 @@ defmodule ITKQueue.Mixfile do
   defp deps do
     [
       {:jason, "~> 1.0"},
-      {:amqp, "~> 1.2"},
       {:httpoison, "~> 1.0"},
+      {:amqp, "~> 1.3"},
       {:uuid, "~> 1.1"},
       {:poolboy, "~> 1.5"},
       {:ex_doc, "~> 0.19.0", only: :dev},
