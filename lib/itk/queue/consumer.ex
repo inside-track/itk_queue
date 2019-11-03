@@ -271,6 +271,10 @@ defmodule ITKQueue.Consumer do
     if should_retry?(headers) do
       retry(message, channel, meta, subscription, reason)
     else
+      error_handler().handle(queue_name, routing_key, Jason.encode!(message), %RuntimeError{
+        message: reason
+      })
+
       reject(message, channel, meta, subscription, reason)
     end
   end
