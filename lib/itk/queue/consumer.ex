@@ -264,17 +264,13 @@ defmodule ITKQueue.Consumer do
          message,
          channel,
          meta = %{headers: headers},
-         subscription = %Subscription{},
+         subscription = %Subscription{queue_name: queue_name, routing_key: routing_key},
          reason
        )
        when is_binary(reason) do
     if should_retry?(headers) do
       retry(message, channel, meta, subscription, reason)
     else
-      error_handler().handle(queue_name, routing_key, Jason.encode!(message), %RuntimeError{
-        message: reason
-      })
-
       reject(message, channel, meta, subscription, reason)
     end
   end
@@ -291,7 +287,6 @@ defmodule ITKQueue.Consumer do
     if should_retry?(headers) do
       retry(message, channel, meta, subscription, reason)
     else
-      error_handler().handle(queue_name, routing_key, Jason.encode!(message), error)
       reject(message, channel, meta, subscription, reason)
     end
   end
@@ -334,6 +329,11 @@ defmodule ITKQueue.Consumer do
     )
 
     AMQP.Basic.reject(channel, tag, requeue: false)
+
+    # Queue Error Handler
+    error_handler().handle(queue_name, routing_key, Jason.encode!(message), %RuntimeError{
+      message: reason
+    })
   end
 
   defp reject(message, channel, meta, subscription = %Subscription{}, error) do
