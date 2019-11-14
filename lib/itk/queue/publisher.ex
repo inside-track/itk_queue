@@ -15,37 +15,38 @@ defmodule ITKQueue.Publisher do
   checking out a single connection to use for all of your publishing will
   be more efficient.
   """
-  @spec publish(routing_key :: String.t(), message :: map, options :: Keyword.t()) :: :ok
-  def publish(routing_key, message, options) when is_bitstring(routing_key) do
-    publish(routing_key, message, [], options)
+  @spec publish(routing_key :: String.t(), messages :: map | list(map), options :: Keyword.t()) ::
+          :ok
+  def publish(routing_key, messages, options) when is_bitstring(routing_key) do
+    publish(routing_key, messages, [], options)
   end
 
   @spec publish(
           AMQP.Connection.t() | AMQP.Channel.t(),
           routing_key :: String.t(),
-          message :: map,
+          messages :: map | list(map),
           options :: Keyword.t()
         ) :: :ok
-  def publish(connection = %AMQP.Connection{}, routing_key, message, options)
+  def publish(connection = %AMQP.Connection{}, routing_key, messages, options)
       when is_bitstring(routing_key) do
-    publish(connection, routing_key, message, [], options)
+    publish(connection, routing_key, messages, [], options)
   end
 
-  def publish(channel = %AMQP.Channel{}, routing_key, message, options)
+  def publish(channel = %AMQP.Channel{}, routing_key, messages, options)
       when is_bitstring(routing_key) do
-    publish(channel, routing_key, message, [], options)
+    publish(channel, routing_key, messages, [], options)
   end
 
   @spec publish(
           routing_key :: String.t(),
-          message :: map,
+          messages :: map | list(map),
           headers :: Headers.t(),
           options :: Keyword.t()
         ) :: :ok
-  def publish(routing_key, message, headers, options)
+  def publish(routing_key, messages, headers, options)
       when is_bitstring(routing_key) do
     if testing?() do
-      fake_publish(routing_key, message)
+      fake_publish(routing_key, messages)
     else
       try do
         {wait_diff, {ref, connection}} = time(fn -> ConnectionPool.checkout() end)
@@ -53,7 +54,7 @@ defmodule ITKQueue.Publisher do
         try do
           {diff, _} =
             time(fn ->
-              publish_message(connection, routing_key, message, headers, options)
+              publish_messages(connection, routing_key, messages, headers, options)
             end)
 
           Logger.info(
@@ -70,7 +71,7 @@ defmodule ITKQueue.Publisher do
             routing_key: routing_key
           )
 
-          Fallback.publish(routing_key, message)
+          Fallback.publish(routing_key, messages)
       end
 
       :ok
@@ -80,18 +81,18 @@ defmodule ITKQueue.Publisher do
   @spec publish(
           AMQP.Connection.t() | AMQP.Channel.t(),
           routing_key :: String.t(),
-          message :: map,
+          messages :: map | list(map),
           headers :: Headers.t(),
           options :: Keyword.t()
         ) :: :ok
-  def publish(connection = %AMQP.Connection{}, routing_key, message, headers, options)
+  def publish(connection = %AMQP.Connection{}, routing_key, messages, headers, options)
       when is_bitstring(routing_key) do
     if testing?() do
-      fake_publish(routing_key, message)
+      fake_publish(routing_key, messages)
     else
       {diff, _} =
         time(fn ->
-          publish_message(connection, routing_key, message, headers, options)
+          publish_messages(connection, routing_key, messages, headers, options)
         end)
 
       Logger.info("Published `#{routing_key}` in #{diff}", routing_key: routing_key)
@@ -100,14 +101,14 @@ defmodule ITKQueue.Publisher do
     :ok
   end
 
-  def publish(channel = %AMQP.Channel{}, routing_key, message, headers, options)
+  def publish(channel = %AMQP.Channel{}, routing_key, messages, headers, options)
       when is_bitstring(routing_key) do
     if testing?() do
-      fake_publish(routing_key, message)
+      fake_publish(routing_key, messages)
     else
       {diff, _} =
         time(fn ->
-          publish_message(channel, routing_key, message, headers, options)
+          publish_messages(channel, routing_key, messages, headers, options)
         end)
 
       Logger.info("Published `#{routing_key}` in #{diff}", routing_key: routing_key)
@@ -118,44 +119,65 @@ defmodule ITKQueue.Publisher do
 
   @spec publish_async(
           routing_key :: String.t(),
-          message :: map,
+          messages :: map | list(map),
           headers :: Headers.t(),
           stacktrace :: any,
           options :: Keyword.t()
         ) :: pid()
-  def publish_async(routing_key, message, headers, stacktrace, options)
+  def publish_async(routing_key, messages, headers, stacktrace, options)
       when is_bitstring(routing_key) do
     if testing?() do
-      fake_publish(routing_key, message)
+      fake_publish(routing_key, messages)
       :ok
     else
       spawn(fn ->
         {ref, connection} = ConnectionPool.checkout()
-        publish(connection, routing_key, message, options)
+        publish(connection, routing_key, messages, options)
         ConnectionPool.checkin(ref)
       end)
     end
   end
 
-  @spec publish_message(
+  @spec publish_messages(
           AMQP.Connection.t() | AMQP.Channel.t(),
           routing_key :: String.t(),
-          message :: map,
+          messages :: map | list(map),
           headers :: Headers.t(),
           options :: Keyword.t()
         ) :: :ok
-  defp publish_message(
+  defp publish_messages(
          connection = %AMQP.Connection{},
          routing_key,
-         message,
+         messages,
          headers,
          options
        ) do
     channel = Channel.open(connection)
-    publish_message(channel, routing_key, message, headers, options)
+    publish_messages(channel, routing_key, messages, headers, options)
     Channel.close(channel)
   end
 
+  defp publish_messages(
+         channel = %AMQP.Channel{},
+         routing_key,
+         messages,
+         headers,
+         options
+       ) do
+    messages
+    |> List.wrap()
+    |> Enum.each(fn message ->
+      publish_message(channel, routing_key, message, headers, options)
+    end)
+  end
+
+  @spec publish_message(
+          AMQP.Channel.t(),
+          routing_key :: String.t(),
+          messages :: map | list(map),
+          headers :: Headers.t(),
+          options :: Keyword.t()
+        ) :: :ok
   defp publish_message(
          channel = %AMQP.Channel{},
          routing_key,
@@ -290,8 +312,13 @@ defmodule ITKQueue.Publisher do
       !Application.get_env(:itk_queue, :running_library_tests, false)
   end
 
-  defp fake_publish(routing_key, message) do
-    send(self(), [:publish, routing_key, message])
+  defp fake_publish(routing_key, messages) do
+    messages
+    |> List.wrap()
+    |> Enum.each(fn message ->
+      send(self(), [:publish, routing_key, message])
+    end)
+
     :ok
   end
 end

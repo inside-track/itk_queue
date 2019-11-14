@@ -1,9 +1,13 @@
 defmodule ITKQueue.Fallback do
   @moduledoc false
 
-  @spec publish(routing_key :: String.t(), message :: map()) :: no_return
-  def publish(routing_key, message) do
-    do_publish(endpoint(), routing_key, message)
+  @spec publish(routing_key :: String.t(), messages :: map() | list(map)) :: no_return
+  def publish(routing_key, messages) do
+    messages
+    |> List.wrap()
+    |> Enum.each(fn message ->
+      do_publish(endpoint(), routing_key, message)
+    end)
   end
 
   defp do_publish(false, _, _), do: nil
