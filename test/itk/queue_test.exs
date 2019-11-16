@@ -15,9 +15,17 @@ defmodule ITKQueue.Test do
 
   test "publishing and subscribing with a function handler" do
     pid = self()
-    ITKQueue.subscribe("my-test-queue-1", "test.queue1", fn _message -> send(pid, :ok) end)
+    ITKQueue.subscribe("my-test-queue-1", "test.queue1", fn %{test: val} -> send(pid, val) end)
     ITKQueue.publish("test.queue1", %{test: "me"})
-    assert_receive :ok, 5_000
+    assert_receive "me", 5_000
+  end
+
+  test "publishing many and subscribing with a function handler" do
+    pid = self()
+    ITKQueue.subscribe("my-test-queue-1", "test.queue1", fn %{test: val} -> send(pid, val) end)
+    ITKQueue.publish("test.queue1", [%{test: "me"}, %{test: "you"}])
+    assert_receive "me", 5_000
+    assert_receive "you", 5_000
   end
 
   test "retrying failed messages" do
