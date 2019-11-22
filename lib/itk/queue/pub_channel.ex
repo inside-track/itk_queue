@@ -7,6 +7,8 @@ defmodule ITKQueue.PubChannel do
   use AMQP
   require Logger
 
+  alias ITKQueue.ConnectionPool
+
   @reconnect_interval 1000
 
   def start_link(args) do
@@ -19,12 +21,12 @@ defmodule ITKQueue.PubChannel do
     {:ok, %{status: :disconnected, chan: nil}}
   end
 
-  def handle_call(:channel, _from, %{chan: chan} = status) do
+  def handle_call(:channel, _from, status = %{chan: chan}) do
     {:reply, chan, status}
   end
 
-  def handle_info(:connect, %{status: :disconnected} = state) do
-    case ITKQueue.ConnectionPool.with_connection(&Channel.open/1) do
+  def handle_info(:connect, state = %{status: :disconnected}) do
+    case ConnectionPool.with_connection(&Channel.open/1) do
       {:ok, chan} ->
         Process.monitor(chan.pid)
         Logger.info("#{inspect(self())} Channel opened for publishing")
