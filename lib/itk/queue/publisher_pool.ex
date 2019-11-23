@@ -15,16 +15,12 @@ defmodule ITKQueue.PublisherPool do
     pool_opts = [
       name: {:local, @pool_name},
       worker_module: ITKQueue.PubChannel,
-      size: 2,
-      max_overflow: 2
+      size: pool_size(),
+      max_overflow: max_overflow()
     ]
 
     children = [
-      :poolboy.child_spec(@pool_name, pool_opts,
-        amqp_url: ITKQueue.amqp_url(),
-        heartbeat: ITKQueue.heartbeat(),
-        reconnect: true
-      )
+      :poolboy.child_spec(@pool_name, pool_opts)
     ]
 
     supervise(children, strategy: :one_for_one, name: __MODULE__)
@@ -77,5 +73,13 @@ defmodule ITKQueue.PublisherPool do
 
   defp running_library_tests? do
     Application.get_env(:itk_queue, :running_library_tests, false)
+  end
+
+  defp pool_size do
+    Application.get_env(:itk_queue, :pub_pool_size, 20)
+  end
+
+  def max_overflow do
+    Application.get_env(:itk_queue, :max_overflow, pool_size() * 3)
   end
 end

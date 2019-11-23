@@ -24,7 +24,7 @@ defmodule ITKQueue.ConnectionPool do
       name: {:local, @pool_name},
       worker_module: Connection,
       size: pool_size(),
-      max_overflow: max_overflow()
+      max_overflow: 0
     ]
 
     children = [
@@ -107,10 +107,6 @@ defmodule ITKQueue.ConnectionPool do
 
   defp pool_size do
     Application.get_env(:itk_queue, :pool_size, 10)
-  end
-
-  def max_overflow do
-    Application.get_env(:itk_queue, :max_overflow, pool_size() * 3)
   end
 
   defp running_library_tests? do

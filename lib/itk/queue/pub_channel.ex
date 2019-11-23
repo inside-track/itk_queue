@@ -4,10 +4,9 @@ defmodule ITKQueue.PubChannel do
   """
 
   use GenServer
-  use AMQP
   require Logger
 
-  alias ITKQueue.ConnectionPool
+  alias ITKQueue.{Channel, ConnectionPool}
 
   @reconnect_interval 1000
 
@@ -26,20 +25,12 @@ defmodule ITKQueue.PubChannel do
   end
 
   def handle_info(:connect, state = %{status: :disconnected}) do
-    case ConnectionPool.with_connection(&Channel.open/1) do
-      {:ok, chan} ->
-        Process.monitor(chan.pid)
-        Logger.info("#{inspect(self())} Channel opened for publishing")
-        {:noreply, %{state | chan: chan, status: :connected}}
-
-      {:error, reason} ->
-        Logger.error(
-          "#{inspect(self())} Channel failed to open for publishing: #{inspect(reason)}"
-        )
-
-        Process.send_after(self(), :connect, @reconnect_interval)
-        {:noreply, %{state | chan: nil, status: :disconnected}}
-    end
+    ConnectionPool.with_connection(fn conn ->
+      chan = Channel.open(conn)
+      Process.monitor(chan.pid)
+      Logger.info("Publisher channel #{inspect(self())} opened on conn #{inspect(conn)}")
+      {:noreply, %{state | chan: chan, status: :connected}}
+    end)
   end
 
   def handle_info({:DOWN, _ref, :process, _pid, reason}, state) do
