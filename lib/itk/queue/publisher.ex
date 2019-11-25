@@ -3,38 +3,15 @@ require Logger
 defmodule ITKQueue.Publisher do
   @moduledoc false
 
-  alias ITKQueue.{Channel, ConnectionPool, Fallback, Headers}
+  alias ITKQueue.{Fallback, Headers, PublisherPool}
 
   @doc """
-  Publishes a message to the given routing key.
-
-  If a connection is provided it will be used. Otherwise a connection
-  will be retrieved from the connection pool, used, and returned.
-
-  If you will be publishing several messages in a short period of time
-  checking out a single connection to use for all of your publishing will
-  be more efficient.
+  Publishes one or multiple messages to the given routing key.
   """
   @spec publish(routing_key :: String.t(), messages :: map | list(map), options :: Keyword.t()) ::
           :ok
   def publish(routing_key, messages, options) when is_bitstring(routing_key) do
     publish(routing_key, messages, [], options)
-  end
-
-  @spec publish(
-          AMQP.Connection.t() | AMQP.Channel.t(),
-          routing_key :: String.t(),
-          messages :: map | list(map),
-          options :: Keyword.t()
-        ) :: :ok
-  def publish(connection = %AMQP.Connection{}, routing_key, messages, options)
-      when is_bitstring(routing_key) do
-    publish(connection, routing_key, messages, [], options)
-  end
-
-  def publish(channel = %AMQP.Channel{}, routing_key, messages, options)
-      when is_bitstring(routing_key) do
-    publish(channel, routing_key, messages, [], options)
   end
 
   @spec publish(
@@ -49,20 +26,24 @@ defmodule ITKQueue.Publisher do
       fake_publish(routing_key, messages)
     else
       try do
-        {wait_diff, {ref, connection}} = time(fn -> ConnectionPool.checkout() end)
+        {wait_time, {ref, channel}} = time(fn -> PublisherPool.checkout() end)
 
         try do
-          {diff, _} =
+          {pub_time, _} =
             time(fn ->
-              publish_messages(connection, routing_key, messages, headers, options)
+              messages
+              |> List.wrap()
+              |> Enum.each(fn message ->
+                basic_pub(channel, routing_key, message, headers, options)
+              end)
             end)
 
           Logger.info(
-            "Published `#{routing_key}` in #{diff} (waited #{wait_diff})",
+            "Published `#{routing_key}` in #{pub_time} (waited #{wait_time})",
             routing_key: routing_key
           )
         after
-          ConnectionPool.checkin(ref)
+          PublisherPool.checkin(ref)
         end
       catch
         :exit, _reason ->
@@ -78,107 +59,14 @@ defmodule ITKQueue.Publisher do
     end
   end
 
-  @spec publish(
-          AMQP.Connection.t() | AMQP.Channel.t(),
-          routing_key :: String.t(),
-          messages :: map | list(map),
-          headers :: Headers.t(),
-          options :: Keyword.t()
-        ) :: :ok
-  def publish(connection = %AMQP.Connection{}, routing_key, messages, headers, options)
-      when is_bitstring(routing_key) do
-    if testing?() do
-      fake_publish(routing_key, messages)
-    else
-      {diff, _} =
-        time(fn ->
-          publish_messages(connection, routing_key, messages, headers, options)
-        end)
-
-      Logger.info("Published `#{routing_key}` in #{diff}", routing_key: routing_key)
-    end
-
-    :ok
-  end
-
-  def publish(channel = %AMQP.Channel{}, routing_key, messages, headers, options)
-      when is_bitstring(routing_key) do
-    if testing?() do
-      fake_publish(routing_key, messages)
-    else
-      {diff, _} =
-        time(fn ->
-          publish_messages(channel, routing_key, messages, headers, options)
-        end)
-
-      Logger.info("Published `#{routing_key}` in #{diff}", routing_key: routing_key)
-    end
-
-    :ok
-  end
-
-  @spec publish_async(
-          routing_key :: String.t(),
-          messages :: map | list(map),
-          headers :: Headers.t(),
-          stacktrace :: any,
-          options :: Keyword.t()
-        ) :: pid()
-  def publish_async(routing_key, messages, headers, stacktrace, options)
-      when is_bitstring(routing_key) do
-    if testing?() do
-      fake_publish(routing_key, messages)
-      :ok
-    else
-      spawn(fn ->
-        {ref, connection} = ConnectionPool.checkout()
-        publish(connection, routing_key, messages, options)
-        ConnectionPool.checkin(ref)
-      end)
-    end
-  end
-
-  @spec publish_messages(
-          AMQP.Connection.t() | AMQP.Channel.t(),
-          routing_key :: String.t(),
-          messages :: map | list(map),
-          headers :: Headers.t(),
-          options :: Keyword.t()
-        ) :: :ok
-  defp publish_messages(
-         connection = %AMQP.Connection{},
-         routing_key,
-         messages,
-         headers,
-         options
-       ) do
-    channel = Channel.open(connection)
-    publish_messages(channel, routing_key, messages, headers, options)
-    Channel.close(channel)
-  end
-
-  defp publish_messages(
-         channel = %AMQP.Channel{},
-         routing_key,
-         messages,
-         headers,
-         options
-       ) do
-    messages
-    |> List.wrap()
-    |> Enum.each(fn message ->
-      publish_message(channel, routing_key, message, headers, options)
-    end)
-  end
-
-  @spec publish_message(
+  @spec basic_pub(
           AMQP.Channel.t(),
           routing_key :: String.t(),
-          messages :: map | list(map),
+          messages :: map,
           headers :: Headers.t(),
           options :: Keyword.t()
         ) :: :ok
-  defp publish_message(
+  defp basic_pub(
          channel = %AMQP.Channel{},
          routing_key,
          message,

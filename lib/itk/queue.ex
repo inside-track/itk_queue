@@ -35,6 +35,7 @@ defmodule ITKQueue do
   defp children do
     [
       ITKQueue.ConnectionPool,
+      ITKQueue.PublisherPool,
       %{
         id: ITKQueue.ConsumerConnection,
         start:

@@ -8,7 +8,7 @@ The package can be installed by adding `itk_queue` to your list of dependencies 
 
 ```elixir
 def deps do
-  [{:itk_queue, "~> 0.10.13"}]
+  [{:itk_queue, "~> 0.11.0"}]
 end
 ```
 
