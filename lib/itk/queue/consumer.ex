@@ -264,7 +264,7 @@ defmodule ITKQueue.Consumer do
          message,
          channel,
          meta = %{headers: headers},
-         subscription = %Subscription{queue_name: queue_name, routing_key: routing_key},
+         subscription = %Subscription{queue_name: _queue_name, routing_key: _routing_key},
          reason
        )
        when is_binary(reason) do
@@ -279,7 +279,7 @@ defmodule ITKQueue.Consumer do
          message,
          channel,
          meta = %{headers: headers},
-         subscription = %Subscription{queue_name: queue_name, routing_key: routing_key},
+         subscription = %Subscription{queue_name: _queue_name, routing_key: _routing_key},
          error
        ) do
     reason = Exception.message(error)
