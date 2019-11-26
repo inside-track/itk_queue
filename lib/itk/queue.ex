@@ -102,7 +102,8 @@ defmodule ITKQueue do
       iex> ITKQueue.publish("data.sync", %{type: "user", data: %{name: "Test User"}})
 
   """
-  @spec publish(routing_key :: String.t(), message :: map(), options :: Keyword.t()) :: :ok
+  @spec publish(routing_key :: String.t(), message :: map | list(map), options :: Keyword.t()) ::
+          :ok
   def publish(routing_key, message, options \\ []) do
     handler =
       Enum.reduce(middleware(), &do_publish/3, fn module, fun ->

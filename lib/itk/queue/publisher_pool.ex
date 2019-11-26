@@ -42,14 +42,14 @@ defmodule ITKQueue.PublisherPool do
   end
 
   @doc """
-  Retrieves a connection from the pool.
+  Retrieves a channel from the pool.
 
-  You are responsible for returning this connection to the pool when you
+  You are responsible for returning this channel to the pool when you
   are done with it.
 
   Example:
-    {ref, connection} = ITKQueue.PublisherPool.checkout
-    # ... do something with the connection
+    {ref, channel} = ITKQueue.PublisherPool.checkout
+    # ... do something with the channel
     ITKQueue.PublisherPool.checkin(ref)
   """
   def checkout do
@@ -63,7 +63,7 @@ defmodule ITKQueue.PublisherPool do
   end
 
   @doc """
-  Return a connection to the pool.
+  Return a channel to the pool.
   """
   def checkin(pid) do
     unless Application.get_env(:itk_queue, :env) == :test && !running_library_tests?() do
