@@ -1,9 +1,13 @@
 require Logger
 
 defmodule ITKQueue.Publisher do
-  @moduledoc false
+  @moduledoc """
+  Provides methods for publishing messages.
+  """
 
   alias ITKQueue.{Fallback, Headers, PublisherPool}
+
+  @log_time_threshold 10_000
 
   @doc """
   Publishes one or multiple messages to the given routing key.
@@ -26,11 +30,11 @@ defmodule ITKQueue.Publisher do
       fake_publish(routing_key, messages)
     else
       try do
-        {wait_time, {ref, channel}} = time(fn -> PublisherPool.checkout() end)
+        {wait_time, {ref, channel}} = :timer.tc(fn -> PublisherPool.checkout() end)
 
         try do
           {pub_time, _} =
-            time(fn ->
+            :timer.tc(fn ->
               messages
               |> List.wrap()
               |> Enum.each(fn message ->
@@ -38,10 +42,7 @@ defmodule ITKQueue.Publisher do
               end)
             end)
 
-          Logger.info(
-            "Published `#{routing_key}` in #{pub_time} (waited #{wait_time})",
-            routing_key: routing_key
-          )
+          maybe_log_publish(pub_time, wait_time, routing_key)
         after
           PublisherPool.checkin(ref)
         end
@@ -186,13 +187,17 @@ defmodule ITKQueue.Publisher do
     Application.get_env(:itk_queue, :amqp_exchange)
   end
 
-  defp time(action) do
-    {time, result} = :timer.tc(action)
-    {format_diff(time), result}
-  end
-
   defp format_diff(diff) when diff > 1000, do: [diff |> div(1000) |> Integer.to_string(), "ms"]
   defp format_diff(diff), do: [Integer.to_string(diff), "µs"]
+
+  defp maybe_log_publish(pub_time, wait_time, routing_key) do
+    if pub_time > @log_time_threshold do
+      Logger.info(
+        "Published `#{routing_key}` in #{format_diff(pub_time)} (waited #{format_diff(wait_time)})",
+        routing_key: routing_key
+      )
+    end
+  end
 
   @spec testing?() :: boolean
   defp testing? do
