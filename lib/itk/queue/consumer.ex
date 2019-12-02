@@ -102,15 +102,28 @@ defmodule ITKQueue.Consumer do
 
     case connection() do
       {:ok, connection} ->
-        channel =
-          connection
-          |> Channel.open()
-          |> Channel.bind(queue_name, routing_key)
+        try do
+          channel =
+            connection
+            |> Channel.open()
+            |> Channel.bind(queue_name, routing_key)
 
-        Process.monitor(channel.pid)
+          Process.monitor(channel.pid)
 
-        {:ok, _} = AMQP.Basic.consume(channel, queue_name, self())
-        %__MODULE__{channel: channel, subscription: subscription}
+          {:ok, _} = AMQP.Basic.consume(channel, queue_name, self())
+          %__MODULE__{channel: channel, subscription: subscription}
+        rescue
+          e ->
+            # Subscribe could timeout
+            Logger.error(
+              "Subscribe error: #{inspect(e)}",
+              queue_name: queue_name,
+              routing_key: routing_key
+            )
+
+            Process.send_after(self(), :subscribe, @reconnect_interval)
+            %__MODULE__{subscription: subscription}
+        end
 
       _ ->
         Logger.error(
