@@ -93,6 +93,20 @@ defmodule ITKQueue.Consumer do
       {:error, :connection_lost}
   end
 
+  defp open_channel(connection, queue_name, routing_key) do
+    channel =
+      connection
+      |> Channel.open()
+      |> Channel.bind(queue_name, routing_key)
+
+    Process.monitor(channel.pid)
+
+    {:ok, _} = AMQP.Basic.consume(channel, queue_name, self())
+    {:ok, channel}
+  rescue
+    e -> e
+  end
+
   defp subscribe(subscription = %Subscription{queue_name: queue_name, routing_key: routing_key}) do
     Logger.info(
       "Subscribing to #{queue_name} (#{routing_key})",
@@ -100,21 +114,14 @@ defmodule ITKQueue.Consumer do
       routing_key: routing_key
     )
 
-    case connection() do
-      {:ok, connection} ->
-        channel =
-          connection
-          |> Channel.open()
-          |> Channel.bind(queue_name, routing_key)
-
-        Process.monitor(channel.pid)
-
-        {:ok, _} = AMQP.Basic.consume(channel, queue_name, self())
-        %__MODULE__{channel: channel, subscription: subscription}
-
-      _ ->
+    with {:ok, conn} <- connection(),
+         {:ok, channel} <- open_channel(conn, queue_name, routing_key) do
+      %__MODULE__{channel: channel, subscription: subscription}
+    else
+      e ->
+        # Subscribe could timeout, or no connection
         Logger.error(
-          "Subscribe error: cannot get connection",
+          "Subscribe error: #{inspect(e)}",
           queue_name: queue_name,
           routing_key: routing_key
         )
