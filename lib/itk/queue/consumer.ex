@@ -83,6 +83,10 @@ defmodule ITKQueue.Consumer do
     {:reply, connection(), state}
   end
 
+  def handle_call({:replace_state, state}, _from, _) do
+    {:reply, :ok, state}
+  end
+
   defp connection do
     case GenServer.call(ITKQueue.ConsumerConnection, :connection) do
       nil -> {:error, :connection_lost}
@@ -133,17 +137,25 @@ defmodule ITKQueue.Consumer do
 
   defp consume_async(channel, meta, payload, subscription) do
     spawn(fn ->
-      consume(channel, meta, payload, subscription)
+      case parse_payload(payload) do
+        {:ok, msg} ->
+          consume(channel, meta, msg, subscription)
+
+        _ ->
+          # Ack to skip this message as we won't be able to process it anyways
+          ignore_message(channel, meta, payload)
+          Logger.error("Invalid JSON payload. #{inspect(payload)}")
+      end
     end)
   end
 
   defp consume(
          channel,
          meta = %{headers: headers},
-         payload,
+         message,
          subscription = %Subscription{queue_name: queue_name, routing_key: routing_key}
        ) do
-    message = payload |> parse_payload |> set_message_uuid
+    message = set_message_uuid(message)
     retry_count = Headers.get(headers, "retry_count")
 
     try do
@@ -174,8 +186,8 @@ defmodule ITKQueue.Consumer do
 
   defp parse_payload(payload) do
     case use_atom_keys?() do
-      true -> Jason.decode!(payload, keys: :atoms)
-      _ -> Jason.decode!(payload)
+      true -> Jason.decode(payload, keys: :atoms)
+      _ -> Jason.decode(payload)
     end
   end
 
@@ -208,6 +220,10 @@ defmodule ITKQueue.Consumer do
   defp message_uuid(%{"metadata" => %{"uuid" => uuid}}), do: uuid
 
   defp message_uuid(_), do: nil
+
+  defp ignore_message(channel, %{delivery_tag: tag}, _message) do
+    AMQP.Basic.ack(channel, tag)
+  end
 
   defp consume_message(
          message,

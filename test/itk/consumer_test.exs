@@ -19,4 +19,21 @@ defmodule ITKQueue.Consumer.Test do
     refute_receive :ok, 100
     assert_receive :ok, 5_000
   end
+
+  test "can skip invalid json message" do
+    pid = self()
+    ITKQueue.subscribe("my-test-queue-2", "test.queue1", fn _message -> send(pid, :ok) end)
+    consumer_pid = GenServer.whereis({:global, "my-test-queue-2"})
+
+    # replace channel with this test process, so the basic ack comes to us
+    s = :sys.get_state(consumer_pid)
+    ch = %AMQP.Channel{s.channel | pid: pid}
+    GenServer.call(consumer_pid, {:replace_state, %Consumer{s | channel: ch}})
+
+    # deliver message straight to the consumer
+    send(consumer_pid, {:basic_deliver, "{\"key\":\"second message\"", %{delivery_tag: 42}})
+
+    assert_receive {_, _, {:call, {:"basic.ack", _, _}, _, _}}, 5_000
+    refute_receive :ok, 100
+  end
 end
