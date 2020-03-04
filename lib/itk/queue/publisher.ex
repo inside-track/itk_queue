@@ -93,7 +93,10 @@ defmodule ITKQueue.Publisher do
            publish_options
          ) do
       :ok ->
-        Logger.info("Publishing #{payload}", routing_key: routing_key)
+        Logger.info("Publishing #{payload}",
+          routing_key: routing_key,
+          message_id: message_uuid(message)
+        )
 
       _ ->
         Logger.info(
