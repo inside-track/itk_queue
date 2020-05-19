@@ -20,6 +20,24 @@ defmodule ITKQueue.Channel do
   end
 
   @doc """
+  Opens a topic channel on the given connection, and activate confirm.
+
+  Returns an `AMQP.Channel`.
+  """
+  @spec open_for_publish(connection :: AMQP.Connection.t(), handler :: pid()) :: AMQP.Channel.t()
+  def open_for_publish(connection, handler) do
+    if testing?() do
+      %AMQP.Channel{}
+    else
+      {:ok, channel} = AMQP.Channel.open(connection)
+      AMQP.Exchange.topic(channel, default_exchange())
+      :ok = AMQP.Confirm.select(channel)
+      AMQP.Confirm.register_handler(channel, handler)
+      channel
+    end
+  end
+
+  @doc """
   Closes a channel.
   """
   @spec close(channel :: AMQP.Channel.t()) :: :ok

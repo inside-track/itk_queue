@@ -38,7 +38,8 @@ defmodule ITKQueue.Publisher do
               messages
               |> List.wrap()
               |> Enum.each(fn message ->
-                basic_pub(channel, routing_key, message, headers, options)
+                publish = basic_pub(channel, routing_key, message, headers, options)
+                GenServer.call(ref, {:publish, publish})
               end)
             end)
 
@@ -66,7 +67,7 @@ defmodule ITKQueue.Publisher do
           messages :: map,
           headers :: Headers.t(),
           options :: Keyword.t()
-        ) :: :ok
+        ) :: tuple()
   defp basic_pub(
          channel = %AMQP.Channel{},
          routing_key,
@@ -83,29 +84,24 @@ defmodule ITKQueue.Publisher do
 
     exchange = Keyword.get(options, :exchange, default_exchange())
     message = set_message_metadata(message, routing_key, options)
+    message_id = message_uuid(message)
     payload = Jason.encode!(message)
+    seq = AMQP.Confirm.next_publish_seqno(channel)
 
-    case AMQP.Basic.publish(
-           channel,
-           exchange,
-           routing_key,
-           payload,
-           publish_options
-         ) do
-      :ok ->
-        Logger.info("Publishing #{payload}",
-          routing_key: routing_key,
-          message_id: message_uuid(message)
-        )
+    AMQP.Basic.publish(
+      channel,
+      exchange,
+      routing_key,
+      payload,
+      publish_options
+    )
 
-      _ ->
-        Logger.info(
-          "Failed to publish #{payload} - sending to fallback.",
-          routing_key: routing_key
-        )
+    Logger.info("Publishing #{payload}",
+      routing_key: routing_key,
+      message_id: message_id
+    )
 
-        Fallback.publish(routing_key, message)
-    end
+    {seq, {exchange, routing_key, message_id, payload, publish_options}}
   end
 
   defp set_message_metadata(message = %{"metadata" => metadata}, routing_key, options) do
