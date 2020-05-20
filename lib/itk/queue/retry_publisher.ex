@@ -1,6 +1,6 @@
-defmodule ITKQueue.PubChannel do
+defmodule ITKQueue.RetryPublisher do
   @moduledoc """
-  Worker for pooled publishers to AMQP message queue.
+  Worker to republish nacked message.
   """
 
   defstruct chan: nil,
@@ -26,19 +26,14 @@ defmodule ITKQueue.PubChannel do
     GenServer.start_link(__MODULE__, args)
   end
 
+  def start_link(opts, name) do
+    GenServer.start_link(__MODULE__, opts, name: name)
+  end
+
   def init(_) do
     Process.flag(:trap_exit, true)
     send(self(), :connect)
     {:ok, %__MODULE__{}}
-  end
-
-  def handle_call(:channel, _from, status = %{chan: chan}) do
-    {:reply, chan, status}
-  end
-
-  def handle_call({:publish, {seq, payload}}, _, state = %{pending: pending}) do
-    pending = Map.put(pending, seq, payload)
-    {:reply, {:ok, seq}, %{state | pending: pending}}
   end
 
   def handle_info(:connect, state = %{status: :disconnected}) do
@@ -46,7 +41,7 @@ defmodule ITKQueue.PubChannel do
       chan = Channel.open_for_publish(conn, self())
       Process.send_after(self(), :confirm, 100)
       Process.monitor(chan.pid)
-      Logger.info("Publisher channel #{inspect(self())} opened on conn #{inspect(conn)}")
+      Logger.info("RetryPublisher channel #{inspect(self())} opened on conn #{inspect(conn)}")
       {:noreply, %{state | chan: chan, status: :connected}}
     end)
   end
@@ -79,14 +74,23 @@ defmodule ITKQueue.PubChannel do
   end
 
   def handle_info({:retry, retries}, state) do
-    retry_publish(retries)
-    {:noreply, state}
+    new_state = retry_publish(retries, state)
+    {:noreply, new_state}
   end
 
   def handle_info({:DOWN, _ref, :process, _pid, reason}, state) do
     Logger.error("Channel closed, because #{inspect(reason)}")
     Process.send_after(self(), :connect, @reconnect_interval)
     {:noreply, %{state | status: :disconnected}}
+  end
+
+  @doc """
+  For PubChannel to call and retry publishing messages.
+  """
+  def handle_call({:retry, retries}, from, state) do
+    GenServer.reply(from, :ok)
+    new_state = retry_publish(retries, state)
+    {:noreply, new_state}
   end
 
   def terminate(reason, %{chan: chan, status: :connected}) do
@@ -100,7 +104,36 @@ defmodule ITKQueue.PubChannel do
 
   def terminate(_reason, _state), do: :ok
 
-  defp retry_publish(retries) do
-    GenServer.call(ITKQueue.RetryPublisher, {:retry, retries})
+  defp retry_publish(retries, state = %{chan: chan, pending: pending}) do
+    Logger.info("Retry publish #{length(retries)} messages")
+
+    {seq, merge} =
+      Enum.reduce(retries, {0, %{}}, fn t, {_, acc} ->
+        seq = publish(chan, t)
+        {seq, Map.put(acc, seq, t)}
+      end)
+
+    pending = Map.merge(pending, merge)
+
+    %{state | last_seq: seq, pending: pending}
+  end
+
+  defp publish(channel, {exchange, routing_key, message_id, payload, opts}) do
+    Logger.info("Republishing #{payload}",
+      routing_key: routing_key,
+      message_id: message_id
+    )
+
+    seq = AMQP.Confirm.next_publish_seqno(channel)
+
+    AMQP.Basic.publish(
+      channel,
+      exchange,
+      routing_key,
+      payload,
+      opts
+    )
+
+    seq
   end
 end
