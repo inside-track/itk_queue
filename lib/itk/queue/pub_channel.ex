@@ -58,7 +58,7 @@ defmodule ITKQueue.PubChannel do
       Logger.info("Publisher waiting to confirm #{len} publishes")
     end
 
-    AMQP.Confirm.wait_for_confirms(chan, 100)
+    spawn(fn -> AMQP.Confirm.wait_for_confirms(chan, 100) end)
     Process.send_after(self(), :confirm, 100)
     {:noreply, state}
   end
