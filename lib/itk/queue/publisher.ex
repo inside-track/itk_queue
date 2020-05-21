@@ -61,6 +61,20 @@ defmodule ITKQueue.Publisher do
     end
   end
 
+  @doc """
+  Stores frequently used metadata into application environment for faster
+  retrieval when publishing messages.
+  """
+  @spec configure_metadata() :: :ok
+  def configure_metadata do
+    {:ok, hostname} = :inet.gethostname()
+    hostname = to_string(hostname)
+    Application.put_env(:itk_queue, :hostname, hostname)
+
+    app_name = Mix.Project.get().project[:app]
+    Application.put_env(:itk_queue, :app_name, app_name)
+  end
+
   @spec basic_pub(
           AMQP.Channel.t(),
           routing_key :: String.t(),
@@ -107,11 +121,11 @@ defmodule ITKQueue.Publisher do
   defp set_message_metadata(message = %{"metadata" => metadata}, routing_key, options) do
     metadata =
       metadata
-      |> Map.put("app", app_name(message))
+      |> Map.put("app", app_name())
       |> Map.put("routing_key", routing_key)
       |> Map.put("uuid", message_uuid(message))
       |> Map.put("source", message_source(message, options))
-      |> Map.put("hostname", hostname(message))
+      |> Map.put("hostname", hostname())
 
     Map.put(message, "metadata", metadata)
   end
@@ -120,22 +134,16 @@ defmodule ITKQueue.Publisher do
     metadata =
       message
       |> Map.get(:metadata, %{})
-      |> Map.put(:app, app_name(message))
+      |> Map.put(:app, app_name())
       |> Map.put(:routing_key, routing_key)
       |> Map.put(:uuid, message_uuid(message))
       |> Map.put(:source, message_source(message, options))
-      |> Map.put(:hostname, hostname(message))
+      |> Map.put(:hostname, hostname())
 
     Map.put(message, :metadata, metadata)
   end
 
-  defp app_name(%{"metadata" => %{"app" => app}}), do: app
-
-  defp app_name(%{metadata: %{app: app}}), do: app
-
-  defp app_name(_message) do
-    Mix.Project.get().project[:app]
-  end
+  defp app_name, do: Application.get_env(:itk_queue, :app_name)
 
   defp message_uuid(%{"metadata" => %{"uuid" => uuid}}), do: uuid
 
@@ -172,14 +180,7 @@ defmodule ITKQueue.Publisher do
     |> String.trim()
   end
 
-  defp hostname(%{"metadata" => %{"hostname" => hostname}}), do: hostname
-
-  defp hostname(%{metadata: %{hostname: hostname}}), do: hostname
-
-  defp hostname(_message) do
-    {:ok, hostname} = :inet.gethostname()
-    to_string(hostname)
-  end
+  defp hostname, do: Application.get_env(:itk_queue, :hostname)
 
   @spec default_exchange() :: String.t()
   defp default_exchange do
