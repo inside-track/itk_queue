@@ -13,6 +13,8 @@ defmodule ITKQueue do
   def start(_type, _args) do
     opts = [strategy: :rest_for_one, name: ITKQueue.Supervisor]
 
+    Publisher.configure_metadata()
+
     environment()
     |> children
     |> Supervisor.start_link(opts)
