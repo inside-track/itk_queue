@@ -51,15 +51,15 @@ defmodule ITKQueue.PubChannel do
     end)
   end
 
-  def handle_info(:confirm, state = %{chan: chan, pending: pending}) do
+  def handle_info(:confirm, state = %{status: :connected, chan: chan, pending: pending}) do
     len = pending |> Map.keys() |> length
 
-    if len > 50 do
+    if len > 1000 do
       Logger.info("Publisher waiting to confirm #{len} publishes")
     end
 
-    spawn(fn -> AMQP.Confirm.wait_for_confirms(chan, 100) end)
-    Process.send_after(self(), :confirm, 100)
+    pid = self()
+    spawn(fn -> Channel.wait_for_confirms(pid, chan) end)
     {:noreply, state}
   end
 
@@ -86,7 +86,11 @@ defmodule ITKQueue.PubChannel do
   def handle_info({:DOWN, _ref, :process, _pid, reason}, state) do
     Logger.error("Channel closed, because #{inspect(reason)}")
     Process.send_after(self(), :connect, @reconnect_interval)
-    {:noreply, %{state | status: :disconnected}}
+    {:noreply, %{state | status: :disconnected, pending: %{}, last_seq: 0}}
+  end
+
+  def handle_info(_, state) do
+    {:noreply, state}
   end
 
   def terminate(reason, %{chan: chan, status: :connected}) do

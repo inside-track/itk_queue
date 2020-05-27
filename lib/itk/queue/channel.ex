@@ -101,6 +101,17 @@ defmodule ITKQueue.Channel do
     channel
   end
 
+  @doc """
+  Wait for publisher confirms, for use in publisher channel.
+  """
+  @spec wait_for_confirms(pid :: pid(), channel :: AMQP.Channel.t()) :: :confirm
+  def wait_for_confirms(pid, channel) do
+    {uc, _} = :timer.tc(fn -> AMQP.Confirm.wait_for_confirms(channel) end)
+    min = 1000 - trunc(uc / 1000)
+    if min > 0, do: Process.sleep(min)
+    send(pid, :confirm)
+  end
+
   defp default_exchange do
     Application.get_env(:itk_queue, :amqp_exchange)
   end
