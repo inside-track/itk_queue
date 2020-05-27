@@ -16,7 +16,8 @@ defmodule ITKQueue.PublisherPool do
       name: {:local, @pool_name},
       worker_module: ITKQueue.PubChannel,
       size: pool_size(),
-      max_overflow: max_overflow()
+      max_overflow: max_overflow(),
+      strategy: :fifo
     ]
 
     children = [
