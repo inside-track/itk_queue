@@ -171,10 +171,10 @@ defmodule ITKQueue.Consumer do
 
         consume_message(message, channel, meta, subscription)
       end
-    rescue
-      e ->
+    catch
+      kind, e ->
         Logger.error(
-          "Queue error #{Exception.format(:error, e, System.stacktrace())}",
+          "Queue error #{Exception.format(kind, e, System.stacktrace())}",
           message_id: message_uuid(message),
           queue_name: queue_name,
           routing_key: routing_key
