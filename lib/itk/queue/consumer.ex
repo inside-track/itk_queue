@@ -180,6 +180,7 @@ defmodule ITKQueue.Consumer do
           routing_key: routing_key
         )
 
+        e = Exception.normalize(:error, e)
         retry_or_die(message, channel, meta, subscription, e)
     end
   end
