@@ -2,7 +2,7 @@ defmodule ITKQueue.Mixfile do
   use Mix.Project
 
   @project_url "https://github.com/inside-track/itk_queue"
-  @version "0.11.7"
+  @version "0.11.8"
 
   def project do
     [
