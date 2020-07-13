@@ -136,7 +136,9 @@ defmodule ITKQueue.Consumer do
   end
 
   defp consume_async(channel, meta, payload, subscription) do
-    spawn(fn ->
+    # Link spawned worker to this process, so that when this GenServer terminates,
+    # the linked worker also shuts down
+    spawn_link(fn ->
       case parse_payload(payload) do
         {:ok, msg} ->
           consume(channel, meta, msg, subscription)
