@@ -21,7 +21,7 @@ defmodule ITKQueue.Retry do
           subscription :: Subscription.t(),
           message :: ITKQueue.message(),
           meta :: ITKQueue.metadata()
-        ) :: no_return
+        ) :: :ok | no_return
   def delay(channel, %Subscription{queue_name: queue_name, routing_key: routing_key}, message, %{
         headers: headers
       })
