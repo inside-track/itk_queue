@@ -335,8 +335,20 @@ defmodule ITKQueue.Consumer do
       routing_key: routing_key
     )
 
-    AMQP.Basic.ack(channel, tag)
-    Retry.delay(channel, subscription, message, meta)
+    try do
+      :ok = Retry.delay(channel, subscription, message, meta)
+      AMQP.Basic.ack(channel, tag)
+    catch
+      kind, e ->
+        Logger.error(
+          "Error retrying #{Exception.format(kind, e, System.stacktrace())}",
+          message_id: message_uuid(message),
+          queue_name: queue_name,
+          routing_key: routing_key
+        )
+
+        AMQP.Basic.nack(channel, tag)
+    end
   end
 
   defp reject(
