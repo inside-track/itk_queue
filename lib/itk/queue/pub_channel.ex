@@ -49,6 +49,10 @@ defmodule ITKQueue.PubChannel do
       Logger.info("Publisher channel #{inspect(self())} opened on conn #{inspect(conn)}")
       {:noreply, %{state | chan: chan, status: :connected}}
     end)
+  catch
+    _, e ->
+      Process.send_after(self(), :connect, @reconnect_interval)
+      {:noreply, state}
   end
 
   def handle_info(:confirm, state = %{status: :connected, chan: chan, pending: pending}) do
