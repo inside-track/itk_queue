@@ -93,7 +93,7 @@ defmodule ITKQueue.Consumer do
       connection -> {:ok, connection}
     end
   catch
-    _ ->
+    _, _ ->
       {:error, :connection_lost}
   end
 
@@ -107,8 +107,8 @@ defmodule ITKQueue.Consumer do
 
     {:ok, _} = AMQP.Basic.consume(channel, queue_name, self())
     {:ok, channel}
-  rescue
-    e -> e
+  catch
+    _, e -> e
   end
 
   defp subscribe(subscription = %Subscription{queue_name: queue_name, routing_key: routing_key}) do

@@ -44,6 +44,11 @@ defmodule ITKQueue.RetryPublisher do
       Logger.info("RetryPublisher channel #{inspect(self())} opened on conn #{inspect(conn)}")
       {:noreply, %{state | chan: chan, status: :connected}}
     end)
+  catch
+    _, e ->
+      Logger.warn("RetryPublisher connect error: #{inspect(e)}")
+      Process.send_after(self(), :connect, @reconnect_interval)
+      {:noreply, state}
   end
 
   def handle_info(:confirm, state = %{status: :connected, chan: chan}) do

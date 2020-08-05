@@ -38,10 +38,7 @@ defmodule ITKQueue do
     [
       ITKQueue.ConnectionPool,
       ITKQueue.PublisherPool,
-      %{
-        id: ITKQueue.RetryPublisher,
-        start: {ITKQueue.RetryPublisher, :start_link, [[], ITKQueue.RetryPublisher]}
-      },
+      ITKQueue.ConsumerSupervisor,
       %{
         id: ITKQueue.ConsumerConnection,
         start:
@@ -51,8 +48,11 @@ defmodule ITKQueue do
              ITKQueue.ConsumerConnection
            ]}
       },
-      ITKQueue.ConsumerSupervisor,
-      ITKQueue.Workers
+      ITKQueue.Workers,
+      %{
+        id: ITKQueue.RetryPublisher,
+        start: {ITKQueue.RetryPublisher, :start_link, [[], ITKQueue.RetryPublisher]}
+      }
     ]
   end
 
