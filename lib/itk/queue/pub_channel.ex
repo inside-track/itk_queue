@@ -50,7 +50,7 @@ defmodule ITKQueue.PubChannel do
       {:noreply, %{state | chan: chan, status: :connected}}
     end)
   catch
-    _, e ->
+    _, _ ->
       Process.send_after(self(), :connect, @reconnect_interval)
       {:noreply, state}
   end
