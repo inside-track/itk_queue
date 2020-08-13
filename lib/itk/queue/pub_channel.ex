@@ -36,9 +36,20 @@ defmodule ITKQueue.PubChannel do
     {:reply, chan, status}
   end
 
-  def handle_call({:publish, {seq, payload}}, _, state = %{pending: pending}) do
-    pending = Map.put(pending, seq, payload)
-    {:reply, {:ok, seq}, %{state | pending: pending}}
+  def handle_call(
+        {:publish, {seq, publish_result, published_message}},
+        _,
+        state = %{pending: pending}
+      ) do
+    case publish_result do
+      {:error, _} ->
+        send(self(), {:retry, %{seq => published_message}})
+        {:reply, {:ok, seq}, state}
+
+      _ ->
+        pending = Map.put(pending, seq, published_message)
+        {:reply, {:ok, seq}, %{state | pending: pending}}
+    end
   end
 
   def handle_info(:connect, state = %{status: :disconnected}) do

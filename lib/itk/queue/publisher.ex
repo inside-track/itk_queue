@@ -48,7 +48,7 @@ defmodule ITKQueue.Publisher do
           PublisherPool.checkin(ref)
         end
       catch
-        :exit, _reason ->
+        _kind, _reason ->
           Logger.info(
             "Failed to publish - sending to fallback.",
             routing_key: routing_key
@@ -102,20 +102,22 @@ defmodule ITKQueue.Publisher do
     payload = Jason.encode!(message)
     seq = AMQP.Confirm.next_publish_seqno(channel)
 
-    AMQP.Basic.publish(
-      channel,
-      exchange,
-      routing_key,
-      payload,
-      publish_options
-    )
+    publish_result =
+      AMQP.Basic.publish(
+        channel,
+        exchange,
+        routing_key,
+        payload,
+        publish_options
+      )
 
     Logger.info("Publishing #{payload}",
       routing_key: routing_key,
       message_id: message_id
     )
 
-    {seq, {exchange, routing_key, message_id, payload, publish_options}}
+    published_message = {exchange, routing_key, message_id, payload, publish_options}
+    {seq, publish_result, published_message}
   end
 
   defp set_message_metadata(message = %{"metadata" => metadata}, routing_key, options) do
