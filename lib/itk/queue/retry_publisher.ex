@@ -66,6 +66,7 @@ defmodule ITKQueue.RetryPublisher do
   def handle_info({:basic_nack, seqno, _}, state = %{last_seq: last_seq, pending: pending}) do
     keys = Enum.to_list(last_seq..seqno)
     retries = Map.take(pending, keys)
+    Logger.warn("Publisher nack for #{length(keys)} messages")
     # wait for some time before republishing
     Process.send_after(self(), {:retry, retries}, 100)
     pending = Map.drop(pending, keys)
