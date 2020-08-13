@@ -3,12 +3,14 @@ defmodule ITKQueue.PubChannel.Test do
   alias ITKQueue.PubChannel
 
   test "handles published message with publish result" do
-    {:ok, pid} = ITKQueue.PubChannel.start_link([])
+    {:ok, pid} = PubChannel.start_link([])
 
     s = :sys.get_state(pid)
     assert s.last_seq == 0
 
-    GenServer.call(pid, {:publish, {1, :ok, {"test", "my.queue", "foo", "{}", []}}})
+    msg = {"test", "pub.queue", "foo", "{}", []}
+
+    GenServer.call(pid, {:publish, {1, :ok, msg}})
     s = :sys.get_state(pid)
     assert s.pending != %{}
 
@@ -16,12 +18,13 @@ defmodule ITKQueue.PubChannel.Test do
     s = :sys.get_state(pid)
     assert s.pending == %{}
 
-    GenServer.call(
-      pid,
-      {:publish, {2, {:error, :closed}, {"test", "my.queue", "foo", "{}", []}}}
-    )
+    this = self()
+    ITKQueue.subscribe("pub-queue-test", "pub.queue", fn _message -> send(this, :ok) end)
 
+    GenServer.call(pid, {:publish, {2, {:error, :closed}, msg}})
     s = :sys.get_state(pid)
     assert s.pending == %{}
+
+    assert_receive :ok, 5_000
   end
 end
