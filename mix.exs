@@ -40,7 +40,7 @@ defmodule ITKQueue.Mixfile do
       {:uuid, "~> 1.1"},
       {:poolboy, "~> 1.5"},
       {:ex_doc, "~> 0.19.0", only: :dev},
-      {:credo, "~> 1.1.0", only: [:dev, :test]},
+      {:credo, "~> 1.4.0", only: [:dev, :test]},
       {:dialyxir, "~> 1.0", only: :dev, runtime: false}
     ]
   end
