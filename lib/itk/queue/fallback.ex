@@ -1,22 +1,27 @@
 defmodule ITKQueue.Fallback do
   @moduledoc false
 
+  @spec publish(routing_key :: String.t(), message :: binary()) :: nil | no_return
+  def publish(routing_key, message) when is_binary(message) do
+    do_publish(endpoint(), routing_key, message)
+  end
+
   @spec publish(routing_key :: String.t(), messages :: map() | list(map)) :: :ok | no_return
   def publish(routing_key, messages) do
     messages
     |> List.wrap()
     |> Enum.each(fn message ->
-      do_publish(endpoint(), routing_key, message)
+      do_publish(endpoint(), routing_key, Jason.encode!(message))
     end)
   end
 
   defp do_publish(false, _, _), do: nil
 
-  defp do_publish(endpoint, routing_key, message) do
+  defp do_publish(endpoint, routing_key, content) do
     {:ok, %HTTPoison.Response{status_code: 201}} =
       HTTPoison.post(
         endpoint,
-        {:form, [routing_key: routing_key, content: Jason.encode!(message)]},
+        {:form, [routing_key: routing_key, content: content]},
         [],
         publish_options()
       )

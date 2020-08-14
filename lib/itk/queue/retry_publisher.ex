@@ -162,7 +162,7 @@ defmodule ITKQueue.RetryPublisher do
           routing_key: routing_key
         )
 
-        Fallback.publish(routing_key, Jason.decode!(payload))
+        Fallback.publish(routing_key, payload)
         {:error, seq}
     end
   end
