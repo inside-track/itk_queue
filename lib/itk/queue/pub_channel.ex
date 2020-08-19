@@ -36,9 +36,20 @@ defmodule ITKQueue.PubChannel do
     {:reply, chan, status}
   end
 
-  def handle_call({:publish, {seq, payload}}, _, state = %{pending: pending}) do
-    pending = Map.put(pending, seq, payload)
-    {:reply, {:ok, seq}, %{state | pending: pending}}
+  def handle_call(
+        {:publish, {seq, publish_result, published_message}},
+        _,
+        state = %{pending: pending}
+      ) do
+    case publish_result do
+      {:error, _} ->
+        retry_publish([published_message])
+        {:reply, {:ok, seq}, state}
+
+      _ ->
+        pending = Map.put(pending, seq, published_message)
+        {:reply, {:ok, seq}, %{state | pending: pending}}
+    end
   end
 
   def handle_info(:connect, state = %{status: :disconnected}) do
@@ -75,7 +86,8 @@ defmodule ITKQueue.PubChannel do
 
   def handle_info({:basic_nack, seqno, _}, state = %{last_seq: last_seq, pending: pending}) do
     keys = Enum.to_list(last_seq..seqno)
-    retries = Map.take(pending, keys)
+    retries = Map.take(pending, keys) |> Map.values()
+    Logger.warn("Publisher nack for #{length(keys)} messages")
     # wait for some time before republishing
     Process.send_after(self(), {:retry, retries}, 100)
     pending = Map.drop(pending, keys)

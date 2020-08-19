@@ -11,7 +11,7 @@ defmodule ITKQueue.RetryPublisher do
   use GenServer
   require Logger
 
-  alias ITKQueue.{Channel, ConnectionPool}
+  alias ITKQueue.{Channel, ConnectionPool, Fallback}
 
   @reconnect_interval 1000
 
@@ -65,16 +65,22 @@ defmodule ITKQueue.RetryPublisher do
 
   def handle_info({:basic_nack, seqno, _}, state = %{last_seq: last_seq, pending: pending}) do
     keys = Enum.to_list(last_seq..seqno)
-    retries = Map.take(pending, keys)
+    retries = Map.take(pending, keys) |> Map.values()
+    Logger.warn("Publisher nack for #{length(keys)} messages")
     # wait for some time before republishing
     Process.send_after(self(), {:retry, retries}, 100)
     pending = Map.drop(pending, keys)
     {:noreply, %{state | pending: pending, last_seq: seqno}}
   end
 
-  def handle_info({:retry, retries}, state) do
+  def handle_info({:retry, retries}, state = %{status: :connected}) do
     new_state = retry_publish(retries, state)
     {:noreply, new_state}
+  end
+
+  def handle_info({:retry, retries}, state) do
+    Process.send_after(self(), {:retry, retries}, @reconnect_interval)
+    {:noreply, state}
   end
 
   def handle_info({:DOWN, _ref, :process, _pid, reason}, state) do
@@ -90,10 +96,13 @@ defmodule ITKQueue.RetryPublisher do
   @doc """
   For PubChannel to call and retry publishing messages.
   """
-  def handle_call({:retry, retries}, from, state) do
-    GenServer.reply(from, :ok)
-    new_state = retry_publish(retries, state)
-    {:noreply, new_state}
+  def handle_call({:retry, retries}, _, state) do
+    send(self(), {:retry, retries})
+    {:reply, :ok, state}
+  end
+
+  def handle_call({:replace_state, state}, _, _) do
+    {:reply, :ok, state}
   end
 
   def terminate(reason, %{chan: chan, status: :connected}) do
@@ -107,13 +116,17 @@ defmodule ITKQueue.RetryPublisher do
 
   def terminate(_reason, _state), do: :ok
 
+  defp retry_publish([], state), do: state
+
   defp retry_publish(retries, state = %{chan: chan, pending: pending}) do
     Logger.info("Retry publish #{length(retries)} messages")
 
     {seq, merge} =
       Enum.reduce(retries, {0, %{}}, fn t, {_, acc} ->
-        seq = publish(chan, t)
-        {seq, Map.put(acc, seq, t)}
+        case do_publish(chan, t) do
+          {:ok, seq} -> {seq, Map.put(acc, seq, t)}
+          {:error, seq} -> {seq, acc}
+        end
       end)
 
     pending = Map.merge(pending, merge)
@@ -121,7 +134,8 @@ defmodule ITKQueue.RetryPublisher do
     %{state | last_seq: seq, pending: pending}
   end
 
-  defp publish(channel, {exchange, routing_key, message_id, payload, opts}) do
+  @spec do_publish(channel :: AMQP.Channel.t(), tuple :: tuple()) :: {atom(), non_neg_integer()}
+  defp do_publish(channel, {exchange, routing_key, message_id, payload, opts}) do
     Logger.info("Republishing #{payload}",
       routing_key: routing_key,
       message_id: message_id
@@ -129,14 +143,27 @@ defmodule ITKQueue.RetryPublisher do
 
     seq = AMQP.Confirm.next_publish_seqno(channel)
 
-    AMQP.Basic.publish(
-      channel,
-      exchange,
-      routing_key,
-      payload,
-      opts
-    )
+    publish_result =
+      AMQP.Basic.publish(
+        channel,
+        exchange,
+        routing_key,
+        payload,
+        opts
+      )
 
-    seq
+    case publish_result do
+      :ok ->
+        {:ok, seq}
+
+      {:error, _} ->
+        Logger.info(
+          "Failed to publish - sending to fallback.",
+          routing_key: routing_key
+        )
+
+        Fallback.publish(routing_key, payload)
+        {:error, seq}
+    end
   end
 end
